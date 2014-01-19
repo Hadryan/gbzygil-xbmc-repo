@@ -1,0 +1,4 @@
+Version 0.1.0
+- Wrote custom resolver for Youku, Lobovideo (you will see slight delay while playing from these sources)
+- Supports vidto , nowvideo, putlocker , youtube, veoh
+- Added search
