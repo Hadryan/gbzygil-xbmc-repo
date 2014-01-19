@@ -13,7 +13,6 @@ import xbmcaddon
 import xbmcgui
 import xbmcplugin
 import xbmcvfs
-import buggalo
 
 if sys.version_info < (2, 7):
     import simplejson
