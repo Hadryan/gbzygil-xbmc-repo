@@ -59,7 +59,7 @@ except:
     print 'Failed to import BeautifulSoup'
     xbmcgui.Dialog().ok("Import Failure", "Failed to import BeautifulSoup", "A component needed is missing on your system")
 
-addon = Addon('plugin.video.olangal', sys.argv)
+addon = Addon('plugin.video.malabartalkies', sys.argv)
 net = Net()
 logo = os.path.join(addon.get_path(), 'icon.png')
 tamillogo = os.path.join(addon.get_path(), 'kamal.png')
@@ -510,7 +510,7 @@ elif mode == 'main':
     addon.add_directory({'mode': 'olangalMalayalam'}, {'title': 'Malayalam : olangal.com'}, img=logo)
     addon.add_directory({'mode': 'rajTamil'}, {'title': 'Tamil : rajtamil.com'}, img=tamillogo)
     addon.add_directory({'mode': 'ViewFavorites'}, {'title': 'Favorites'})
-    addon.add_directory({'mode': 'resolver_settings'}, {'title': 'resolver settings'}, is_folder=False)
+#     addon.add_directory({'mode': 'resolver_settings'}, {'title': 'resolver settings'}, is_folder=False)
 
 #     addon.add_directory({'mode': 'movies'}, {'title': 'Recent Movies'}, img=logo)
 #     addon.add_directory({'mode': 'GetSearchQuery'}, {'title': 'Search'})
