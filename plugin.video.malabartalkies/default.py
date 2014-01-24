@@ -1,63 +1,14 @@
-import ctypes
-import datetime
-import math
-import os
-import re
-import re
-import string
-import sys
-import urllib
-import urllib2
-import xbmc
-import xbmcaddon
-import xbmcgui
-import xbmcplugin
-import xbmcvfs
+import urlresolver, html5lib, ctypes, datetime, math, os, re, re, string, sys, urllib, urllib2, xbmc, xbmcaddon, xbmcgui, xbmcplugin, xbmcvfs, base64, uuid, jsunpack
+from t0mm0.common.addon import Addon
+from t0mm0.common.net import Net
+from html5lib import sanitizer
+from html5lib import treebuilders
+from bs4 import BeautifulSoup
 
 if sys.version_info < (2, 7):
     import simplejson
 else:
     import json as simplejson
-
-try:
-    import jsunpack
-except:
-    print 'Failed to import jsunpack'
-    xbmcgui.Dialog().ok("Import Failure", "Failed to import jsunpack", "A component needed is missing on your system")
-
-try:
-    from t0mm0.common.addon import Addon
-except:
-    print 'Failed to import t0mm0.common.addon'
-    xbmcgui.Dialog().ok("Import Failure", "Failed to import t0mm0.common.addon", "A component needed is missing on your system")
-
-try:
-    from t0mm0.common.net import Net
-except:
-    print 'Failed to import t0mm0.common.net'
-    xbmcgui.Dialog().ok("Import Failure", "Failed to import t0mm0.common.net", "A component needed is missing on your system")
-
-try:
-    import urlresolver
-#     from urlresolver import common
-
-except:
-    print 'Failed to import urlresolver'
-    xbmcgui.Dialog().ok("Import Failure", "Failed to import urlresolver", "A component needed is missing on your system")
-
-try:
-    import html5lib
-    from html5lib import sanitizer
-    from html5lib import treebuilders
-except:
-    print 'Failed to import html5lib'
-    xbmcgui.Dialog().ok("Import Failure", "Failed to import html5lib", "A component needed is missing on your system")
-
-try:
-    from bs4 import BeautifulSoup
-except:
-    print 'Failed to import BeautifulSoup'
-    xbmcgui.Dialog().ok("Import Failure", "Failed to import BeautifulSoup", "A component needed is missing on your system")
 
 addon = Addon('plugin.video.malabartalkies', sys.argv)
 net = Net()
@@ -68,6 +19,8 @@ paginationText = ''
 mode = addon.queries['mode']
 play = addon.queries.get('play', None)
 RootDir = addon.get_path()
+if not xbmcvfs.exists(RootDir+'/thumbs'):
+    xbmcvfs.mkdirs(RootDir+'/thumbs')
 
 
 class youkuDecoder:
@@ -239,9 +192,6 @@ elif mode == 'rajtamilMovies':
             contextMenuItems = []
 
             contextMenuItems.append(('Add to Favorites', 'XBMC.RunPlugin(%s?mode=200&name=%s&url=%s&fanarturl=%s)' % (sys.argv[0], movTitle, movPage,imgSrc)))
-
-#                 addon.add_directory({'mode': 'individualmovie', 'url': fullLink, 'fanarturl': imgfullLink ,'title': names}, {'title': names}, img=imgfullLink,contextmenu_items=contextMenuItems, context_replace=True)
-
             addon.add_directory({'mode': 'individualmovie_rajtamil', 'url': movPage, 'fanarturl': imgSrc ,'title': movTitle}, {'title': movTitle}, img=imgSrc, is_folder=False,contextmenu_items=contextMenuItems, context_replace=True)
             print 'gbc adding movie =' + movTitle + ' ,url =' + movPage + ' ,fanart = ' + imgSrc
     for Paginator in soup.findAll("div", { "class":"navigation" }):
@@ -257,6 +207,17 @@ elif mode == 'rajtamilMovies':
     addon.add_directory({'mode': 'rajtamilMovies', 'currPage': int(CurrentPage) + 1 }, {'title': 'Next Page.. ' + paginationText})
     dlg.close()
 
+elif mode == 'individualmovie_kathoram':
+    url = addon.queries.get('url', False)
+    movTitle = str(addon.queries.get('title', False))
+    fanarturl = str(addon.queries.get('fanarturl', False))
+    print 'gbc current movie url : ' + url
+    print 'gbc current movie fanarturl : ' + fanarturl
+    print 'gbc current movie title : ' + movTitle
+    link = net.http_GET(url).content
+    soup = BeautifulSoup(link)
+
+
 elif mode == 'individualmovie_rajtamil':
     url = addon.queries.get('url', False)
     movTitle = str(addon.queries.get('title', False))
@@ -264,12 +225,6 @@ elif mode == 'individualmovie_rajtamil':
     print 'gbc current movie url : ' + url
     print 'gbc current movie fanarturl : ' + fanarturl
     print 'gbc current movie title : ' + movTitle
-
-#     req = urllib2.Request(url)
-#     req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
-#     response = urllib2.urlopen(req)
-#     link=response.read()
-#     response.close()
     link = net.http_GET(url).content
 
     soup = BeautifulSoup(link)
@@ -298,6 +253,55 @@ elif mode == 'individualmovie_rajtamil':
         listitem.setInfo('video', {'Title': movTitle, 'iconImage': fanarturl})
         xbmc.Player().play(stream_url,listitem)
 
+elif mode == 'kathoramMalayalam':
+    dlg = xbmcgui.DialogProgress()
+    dlg.create( "kathoram", "Fetching movies..." )
+    dlg.update( 0 )
+    currPage = addon.queries.get('currPage', False)
+    if not currPage:
+        currPage = 0
+    kathoramurl = 'http://www.kathoram.com/malayalam/video/malayalam-latest.html?start=' + str(currPage)
+    link = net.http_GET(kathoramurl).content
+#     link=link.decode('utf-8')
+    soup = BeautifulSoup(link, 'html5lib')
+#     soup=BeautifulSoup(link)
+#print soup.prettify()
+
+
+    for coveritem in soup.findAll("div", { "class":"contentpaneopen clearfix" }):
+        for images in coveritem.findAll("div", { "class":"article-content" }):
+            imgfullLink=images.find('img')['src']
+
+        for eachContent in coveritem.findAll("h2", { "class":"contentheading" }):
+            links=eachContent.find_all('a')
+            for link in links:
+                fullLink='http://www.kathoram.com'+str(link['href'])
+#                 names= '[COLOR red]'+str(link.contents[0].strip())+'[/COLOR]'
+                try:
+                    names= str(link.contents[0].strip().decode('utf-8'))
+
+                    #if img is base64 encoded, check if thumbnail file already exists. if not, create it
+                    if 'data:image/jpeg;base64,' in imgfullLink:
+                        thumbFile=RootDir+'/thumbs/'+names.replace(" ","")+".jpeg"
+                        if not xbmcvfs.exists(thumbFile):
+                            imgfullLink = imgfullLink.replace('data:image/jpeg;base64,', '')
+                            fh = open(thumbFile, "wb")
+                            fh.write(imgfullLink.decode('base64'))
+                            fh.close()
+                        imgfullLink=thumbFile
+
+
+    #                 addon.add_directory({'mode': 'individualmovie_kathoram', 'url': fullLink , 'fanarturl': imgfullLink, 'title': names}, {'title': names})
+                    addon.add_directory({'mode': 'individualmovie_kathoram', 'url': fullLink, 'fanarturl': imgfullLink ,'title': names}, {'title': names}, img=imgfullLink)
+                except:
+                    print "found movie name with malayalam in it. skipping it for now"
+
+    for counters in soup.findAll("p", { "class":"counter" }):
+        span=counters.find('span')
+        paginationText='Next Page.. ( Currently in '+str(span.string)+' )'
+    addon.add_directory({'mode': 'kathoramMalayalam', 'currPage': int(currPage) + 14 }, {'title': paginationText})
+    dlg.close()
+
 elif mode == 'olangalMovies':
     dlg = xbmcgui.DialogProgress()
     dlg.create( "olangal", "Fetching movies..." )
@@ -306,6 +310,7 @@ elif mode == 'olangalMovies':
     if not currPage:
         currPage = 0
     olangalurl = 'http://olangal.com/?start=' + str(currPage)
+    print "gbc current url = "+olangalurl
     link = net.http_GET(olangalurl).content
     soup = BeautifulSoup(link, 'html5lib')
 
@@ -354,7 +359,7 @@ elif mode == 'olangalMovies':
                 addon.add_directory({'mode': 'individualmovie', 'url': fullLink, 'fanarturl': imgfullLink ,'title': names}, {'title': names}, img=imgfullLink,contextmenu_items=contextMenuItems, context_replace=True)
                 print 'gbc adding movie =' + names + ' ,url =' + fullLink + ' ,fanart = ' + imgfullLink
 
-    addon.add_directory({'mode': 'movies', 'currPage': int(currPage) + 24 }, {'title': 'Next Page.. ' + paginationText})
+    addon.add_directory({'mode': 'olangalMovies', 'currPage': int(currPage) + 24 }, {'title': 'Next Page.. ' + paginationText})
     dlg.close()
 
 elif mode =='200':
@@ -388,14 +393,12 @@ elif mode == 'individualmovie':
     print 'gbc current movie url : ' + url
     print 'gbc current movie fanarturl : ' + fanarturl
     print 'gbc current movie title : ' + movTitle
-
     req = urllib2.Request(url)
     req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
     response = urllib2.urlopen(req)
     link = response.read()
     response.close()
     soup = BeautifulSoup(link)
-
     allVidSrcs = soup.findAll('a', target="_blank")
 
     currIdx=0
@@ -443,7 +446,6 @@ elif mode == 'individualmovie':
               mediaUrl = GbcYoukuResolver(media_id)
               if mediaUrl:
                   print 'gbc From vidLink = ' + mediaUrl + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost+ ', movTitle=' + movTitle
-
                   li = xbmcgui.ListItem(movTitle+","+mediaHost + ' (' + media_id + ')')
                   li.setProperty('IsPlayable', 'true')
                   xbmcplugin.addDirectoryItem(int(sys.argv[1]), mediaUrl, li)
@@ -500,22 +502,14 @@ elif mode == 'GetSearchQuery':
         dlg.close
 
 elif mode == 'olangalMalayalam':
-    addon.add_directory({'mode': 'olangalMovies'}, {'title': 'Recent Movies'}, img=logo)
-    addon.add_directory({'mode': 'GetSearchQuery'}, {'title': 'Search'})
-
+    addon.add_directory({'mode': 'olangalMovies'},     {'title': 'Recent Movies'}, img=logo)
+    addon.add_directory({'mode': 'GetSearchQuery'},    {'title': 'Search'})
 elif mode == 'rajTamil':
-    addon.add_directory({'mode': 'rajtamilMovies'}, {'title': 'Recent Movies'}, img=tamillogo)
-
+    addon.add_directory({'mode': 'rajtamilMovies'},    {'title': 'Recent Movies'}, img=tamillogo)
 elif mode == 'main':
-    addon.add_directory({'mode': 'olangalMalayalam'}, {'title': 'Malayalam : olangal.com'}, img=logo)
-    addon.add_directory({'mode': 'rajTamil'}, {'title': 'Tamil : rajtamil.com'}, img=tamillogo)
-    addon.add_directory({'mode': 'ViewFavorites'}, {'title': 'Favorites'})
-#     addon.add_directory({'mode': 'resolver_settings'}, {'title': 'resolver settings'}, is_folder=False)
-
-#     addon.add_directory({'mode': 'movies'}, {'title': 'Recent Movies'}, img=logo)
-#     addon.add_directory({'mode': 'GetSearchQuery'}, {'title': 'Search'})
-#     addon.add_directory({'mode': 'ViewFavorites'}, {'title': 'Favorites'})
-#     addon.add_directory({'mode': 'resolver_settings'}, {'title': 'resolver settings'}, is_folder=False)
-
+    addon.add_directory({'mode': 'olangalMalayalam'},  {'title': 'Malayalam : olangal.com'}, img=logo)
+#     addon.add_directory({'mode': 'kathoramMalayalam'}, {'title': 'Malayalam : kathoram.com'}, img=logo)
+    addon.add_directory({'mode': 'rajTamil'},          {'title': 'Tamil : rajtamil.com'}, img=tamillogo)
+    addon.add_directory({'mode': 'ViewFavorites'},     {'title': 'Favorites'})
 if not play:
     addon.end_of_directory()
