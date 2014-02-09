@@ -1,7 +1,12 @@
-Version 0.1.1
+[B]Version 0.1.2[/B]
+- Added new source for movies,shortfilms,comedy clips : abcmalayalam.com
+- bug fixes
+- Coming soon, common.cache and Downloads (for ppl with no patience to stand buffering :) )
+
+[B]Version 0.1.1[/B]
 - Fixed issue when browsing to next page
 
-Version 0.1.0
+[B]Version 0.1.0[/B]
 - Wrote custom resolver for Youku, Lobovideo (you will see slight delay while playing from these sources)
 - Supports vidto , nowvideo, putlocker , youtube, veoh
 - Added search

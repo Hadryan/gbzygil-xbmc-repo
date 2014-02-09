@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <addons>
-<addon id="plugin.video.malabartalkies" version="0.1.1" name="MalabarTalkies" provider-name="gbzygil">
+<addon id="plugin.video.malabartalkies" version="0.1.2" name="MalabarTalkies" provider-name="gbzygil">
     <requires>
         <import addon="xbmc.python" version="2.1.0"/>
         <import addon="script.module.urlresolver" version="1.0.0"/>
@@ -15,8 +15,8 @@
         <provides>video</provides>
     </extension>
     <extension point="xbmc.addon.metadata">
-        <summary>watch Malayalam,Tamil movies from olangal.com, rajtamil.com</summary>
-        <description>This addon lets you watch malayalam movies and tamil movies from olangal.com and rajtamil.com</description>
+        <summary>watch Malayalam,Tamil movies from olangal.com, rajtamil.com,abcmalayalam.com</summary>
+        <description>This addon lets you watch malayalam movies and tamil movies from olangal.com, rajtamil.com,abcmalayalam.com</description>
         <platform>all</platform>
     </extension>
 </addon>
