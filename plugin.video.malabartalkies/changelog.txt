@@ -1,3 +1,7 @@
+[B]Version 0.1.4[/B]
+- Fixed Thiruttuvcd Hindi Next Page link
+- Thiruttumasala was enabled by default. Changed default to disabled in Addon-Settings
+
 [B]Version 0.1.3[/B]
 - common.Cache enabled. Url's are parsed and results are cached now. So next time you open the same link, items are fetched from the cache instead of the real web url. This gives significant speed improvement. You can change cache expiry time via addon settings.
 - Enabled Addon settings

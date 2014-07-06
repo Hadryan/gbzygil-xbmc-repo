@@ -235,7 +235,7 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
                 movTitle = re.sub('Watch', '', movTitle)
                 movTitle = re.sub('Online', '', movTitle)
 
-                print 'BLAAAAAAAA' + movTitle + ',' + link + "," + img
+                #print 'BLAAAAAAAA' + movTitle + ',' + link + "," + img
                 if ('MP3' not in movTitle) & ('Songs' not in movTitle):
                     Dict_movlist.update({movTitle:'mode=individualmovie, url=' + link + ', imgLink=' + img})
 #             try:
@@ -251,7 +251,12 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
                 CurrPage1 = int1
                 print "(" + int1 + ")" + "\n"
                 paginationText = "( Currently in " + txt + ")\n"
-                Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=thiruttuvcd_tamilMovs, currPage=' + str(int(CurrPage1) + 1) + ',title=Next Page.. ' + paginationText})
+                if 'hindi-movies-online' in thiruttuvcd_url:
+                    Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=thiruttuvcd_hindiMovs, currPage=' + str(int(CurrPage1) + 1) + ',title=Next Page.. ' + paginationText})
+                elif 'telugu-movies'  in thiruttuvcd_url:
+                    Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=thiruttuvcd_teluguMovs, currPage=' + str(int(CurrPage1) + 1) + ',title=Next Page.. ' + paginationText})
+                else:
+                    Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=thiruttuvcd_tamilMovs, currPage=' + str(int(CurrPage1) + 1) + ',title=Next Page.. ' + paginationText})
 
 #             except:
 #                 print "No next page"
