@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<settings>
+    <setting label="EnableAdult" type="bool" id="EnableAdult" default="true"/>
+    <setting label="Cache-Timeout" type="number" id="Cache-Timeout" default="24 "/>
+</settings>
