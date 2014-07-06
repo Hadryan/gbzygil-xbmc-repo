@@ -30,7 +30,7 @@
 	</extension>
 	<extension point="xbmc.addon.metadata">
 		<summary>gbzygil's Addon Repository</summary>
-		<description>Download and install gbzygil's addon repository, home of the olangal.com and rajtamil.com addons!</description>
+		<description>Malayalam, Tamil, Telugu, Hindi Movies from olangal.com, rajtamil.com, abcMalayalam.com, thirittuvcd.com !</description>
 		<disclaimer></disclaimer>
 		<platform>all</platform>
 	</extension>
