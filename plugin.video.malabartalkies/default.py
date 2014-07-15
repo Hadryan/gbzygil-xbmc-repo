@@ -14,7 +14,6 @@ addon = Addon('plugin.video.malabartalkies', sys.argv)
 SETTINGS_CACHE_TIMEOUT = addon.get_setting('Cache-Timeout')
 #SETTINGS_CACHE_TIMEOUT = 60
 SETTINGS_ENABLEADULT = addon.get_setting('EnableAdult')
-ALLOW_HIT_CTR = addon.get_setting('AllowHitCtr')
 cache = StorageServer.StorageServer("malabartalkies", SETTINGS_CACHE_TIMEOUT)
 net = Net()
 logo = os.path.join(addon.get_path(), 'icon.png')
@@ -26,29 +25,6 @@ RootDir = addon.get_path()
 dlg = xbmcgui.DialogProgress()
 cwd = addon.get_path()
 img_path = cwd + '/resources/img'
-
-HitCtrUrl_Root = 'http://cc.amazingcounters.com/counter.php?i=3174621&c=9524176'
-HitCtrUrl_olangal = 'http://cc.amazingcounters.com/counter.php?i=3174622&c=9524179'
-HitCtrUrl_abcMal = 'http://cc.amazingcounters.com/counter.php?i=3174624&c=9524185'
-HitCtrUrl_abcMal_Mal = 'http://cc.amazingcounters.com/counter.php?i=3174628&c=9524197'
-HitCtrUrl_abcMal_NonMal = 'http://cc.amazingcounters.com/counter.php?i=3174629&c=9524200'
-HitCtrUrl_abcMal_ShortFilms = 'http://cc.amazingcounters.com/counter.php?i=3174630&c=9524203'
-HitCtrUrl_abcMal_Comedy = 'http://cc.amazingcounters.com/counter.php?i=3174631&c=9524206'
-HitCtrUrl_abcMal_Adult = 'http://cc.amazingcounters.com/counter.php?i=3174632&c=9524209'
-HitCtrUrl_rajtamil = 'http://cc.amazingcounters.com/counter.php?i=3174625&c=9524188'
-HitCtrUrl_rajtamil_Mov = 'http://cc.amazingcounters.com/counter.php?i=3174634&c=9524215'
-HitCtrUrl_rajtamil_VijayTV = 'http://cc.amazingcounters.com/counter.php?i=3174635&c=9524218'
-HitCtrUrl_rajtamil_SunTV = 'http://cc.amazingcounters.com/counter.php?i=3174636&c=9524221'
-HitCtrUrl_rajtamil_ZeeTv = 'http://cc.amazingcounters.com/counter.php?i=3174637&c=9524224'
-HitCtrUrl_thiruttuvcd = 'http://cc.amazingcounters.com/counter.php?i=3174626&c=9524191'
-HitCtrUrl_thiruttuvcd_tamil = 'http://cc.amazingcounters.com/counter.php?i=3174638&c=9524227'
-HitCtrUrl_thiruttuvcd_telugu = 'http://cc.amazingcounters.com/counter.php?i=3174639&c=9524230'
-HitCtrUrl_thiruttuvcd_hindi = 'http://cc.amazingcounters.com/counter.php?i=3174640&c=9524233'
-HitCtrUrl_thiruttuvcd_masala = 'http://cc.amazingcounters.com/counter.php?i=3174641&c=9524236'
-
-if ALLOW_HIT_CTR == 'true':
-    net.http_GET(HitCtrUrl_Root)
-
 
 if not xbmcvfs.exists(RootDir + '/thumbs'):
     xbmcvfs.mkdirs(RootDir + '/thumbs')
@@ -206,7 +182,7 @@ def GbcLoboVideoResolver(media_id):
     return retval
 
 def getMovList_thiruttuvcd(thiruttuvcd_url):
-        print "================gbc checking cache hit : function getMovList_thiruttuvcd was called"
+        print "================GBZYGIL checking cache hit : function getMovList_thiruttuvcd was called"
         Dict_movlist = {}
 
         if 'thiruttumasala' in thiruttuvcd_url:
@@ -227,7 +203,7 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
                 Dict_movlist.update({movTitle:'mode=individualmovie, url=' + base_url + link + ', imgLink=' + base_url + img})
             try:
                 CurrPage = soup.find("span", { "class":"currentpage" })
-                print "<<<<<<<<<<<<< gbc found pagination " + CurrPage.text
+                print "<<<<<<<<<<<<< gbzygil found pagination " + CurrPage.text
                 paginationText = "( Currently in Page " + CurrPage.text + ")\n"
                 Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(int(CurrPage.text) + 1) + ',title=Next Page.. ' + paginationText})
             except:
@@ -264,7 +240,7 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
                     Dict_movlist.update({movTitle:'mode=individualmovie, url=' + link + ', imgLink=' + img})
 #             try:
             CurrPage = soup.find("span", { "class":"pages" })
-            print "<<<<<<<<<<<<< gbc found pagination " + CurrPage.text
+            print "<<<<<<<<<<<<< gbzygil found pagination " + CurrPage.text
             txt = CurrPage.text
             re1 = '.*?'  # Non-greedy match on filler
             re2 = '(\\d+)'  # Integer Number 1
@@ -289,7 +265,7 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
         return Dict_movlist
 
 def getMovList_rajtamil(rajTamilurl):
-        print "================gbc checking cache hit : function getMovList_rajtamil was called"
+        print "================GBZYGIL checking cache hit : function getMovList_rajtamil was called"
 
         Dict_movlist = {}
         link = net.http_GET(rajTamilurl).content
@@ -349,7 +325,7 @@ def getMovList_rajtamil(rajTamilurl):
         return Dict_movlist
 
 def getMovList_olangal(olangalurl):
-            print "================gbc checking cache hit : function getMovList_olangal was called"
+            print "================GBZYGIL checking cache hit : function getMovList_olangal was called"
             Dict_movlist = {}
             print "gbc current url = " + olangalurl
             link = net.http_GET(olangalurl).content
@@ -405,7 +381,7 @@ def getMovList_olangal(olangalurl):
             return Dict_movlist
 
 def getMovList_ABCmal(abcmalUrl):
-        print "================gbc checking cache hit : function getMovList_ABCmal was called"
+        print "================GBZYGIL checking cache hit : function getMovList_ABCmal was called"
         Dict_movlist = {}
 
         link = net.http_GET(abcmalUrl).content
@@ -562,12 +538,12 @@ def getMovLinksForEachMov(url):
                             if 'youtube' in link:
                                 (head, tail) = os.path.split(link)
                                 tail = str(tail).replace('watch?v=', '')
-                                print "gbc : Adding using method1 " + tail
+                                print "Gbzygil : Adding using method1 " + tail
                                 sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=tail))
 
 
             except:
-                print "gbc : no embedded youtube urls found using method1 "
+                print "Gbzygil : no embedded youtube urls found using method1 "
 
             try:
                 for eachItem in soup.findAll('p'):
@@ -580,11 +556,11 @@ def getMovLinksForEachMov(url):
                             splitString = eI.split("=")
                             eI = splitString[2]
                             print eI
-                            print "gbc : Adding using method2 " + eI
+                            print "Gbzygil : Adding using method2 " + eI
                             sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(eI)))
 
             except:
-                print "gbc : no embedded youtube urls found using method2 "
+                print "Gbzygil : no embedded youtube urls found using method2 "
 
             try:
                 re1 = '(window\\.open)'  # Fully Qualified Domain Name 1
@@ -602,17 +578,17 @@ def getMovLinksForEachMov(url):
                     if 'youtube' in link:
                         (head, tail) = os.path.split(link)
                         tail = str(tail).replace('watch?v=', '')
-                        print "gbc : Adding using method3 " + tail
+                        print "Gbzygil : Adding using method3 " + tail
 
                         sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(tail)))
             except:
-                print "gbc : no embedded youtube urls found using method3 "
+                print "Gbzygil : no embedded youtube urls found using method3 "
 
             try:
                 for eachItem in soup.findAll('param', {'name': 'movie'}):
                     if eachItem.has_attr('value'):
 #                         print eachItem['value']
-#                         print "gbc : Adding using method3 " + eachItem['value']
+#                         print "Gbzygil : Adding using method3 " + eachItem['value']
 #                         sources.append(urlresolver.HostedMediaFile(url=eachItem['value']))
 #                         sources.append(urlresolver.HostedMediaFile(url='http://www.youtube.com/v/Y0iJdORpTPE'))
                         httpurl1 = eachItem['value']
@@ -621,12 +597,12 @@ def getMovLinksForEachMov(url):
                         if 'youtube' in link:
                             (head, tail) = os.path.split(link)
                             tail = str(tail).replace('watch?v=', '')
-                            print "gbc : Adding using method3 " + tail
+                            print "Gbzygil : Adding using method3 " + tail
 
                             sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(tail)))
 
             except:
-                print "gbc : no embedded youtube urls found using method4 "
+                print "Gbzygil : no embedded youtube urls found using method4 "
 
             try:
                 for eachItem in soup.findAll("a"):
@@ -635,12 +611,12 @@ def getMovLinksForEachMov(url):
                         if 'youtube' in link:
                             (head, tail) = os.path.split(link)
                             tail = str(tail).replace('watch?v=', '')
-                            print "gbc : Adding using method5 " + tail
+                            print "Gbzygil : Adding using method5 " + tail
 
                             sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(tail)))
 
             except:
-                print "gbc : no embedded youtube urls found using method5 "
+                print "Gbzygil : no embedded youtube urls found using method5 "
 
             links = soup.find_all('iframe')
             for link in links:
@@ -663,7 +639,7 @@ def getMovLinksForEachMov(url):
             for idx, s in enumerate(sources):
                 # Dict_movSources.update({movTitle + str(idx):'host=' + s.get_host() + ' , media_id=' + s.get_media_id() + ' , title=' + movTitle + ' , img=' + fanarturl.strip()})
                 if s.get_host():
-                    print "gbc : host is " + s.get_host() + ', mediaID=' + s.get_media_id() + ', adding new item'
+                    print "gbzygil : host is " + s.get_host() + ', mediaID=' + s.get_media_id() + ', adding new item'
                     addon.add_video_item({'host': s.get_host() , 'media_id': s.get_media_id(), 'title': movTitle, 'img':fanarturl, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
 
     elif 'thiruttuvcd.me' in url:
@@ -951,27 +927,17 @@ elif mode == 'GetMovies':
             currPage = 0
         if subUrl == 'ABCMalayalam-Mal':
             abcmalUrl = base_url + '/movies?start=' + str(currPage)
-            if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_Mal)
         elif subUrl == 'ABCMalayalam-NonMal':
             abcmalUrl = base_url + '/non-malayalam?start=' + str(currPage)
-            if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_NonMal)
         elif subUrl == 'ABCMalayalam-shortFilm':
             abcmalUrl = base_url + '/short-film?start=' + str(currPage)
-            if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_ShortFilms)
         elif subUrl == 'ABCMalayalam-sizzling':
             abcmalUrl = base_url + '/sizzling?start=' + str(currPage)
-            if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_Adult)
         elif subUrl == 'ABCMalayalam-Comedy':
             abcmalUrl = base_url + '/Comedy?start=' + str(currPage)
-            if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_Comedy)
 
         Dict_res = cache.cacheFunction(getMovList_ABCmal, abcmalUrl)
-#         print "<<<<<gbc received DICT="
+#         print "<<<<<GBZYGIL received DICT="
 #         dump(Dict_res)
         for key, value in Dict_res.iteritems():
             if 'Paginator' not in key:
@@ -1000,7 +966,7 @@ elif mode == 'GetMovies':
                     elif 'title' in eachSplitVal:
                         title_Str = str(eachSplitVal.replace('title=', '')).strip()
                 addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-                print "gbc : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
+                print "gbzygil : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
         except:
             print "No pagination found"
 
@@ -1035,7 +1001,7 @@ elif mode == 'GetMovies':
                         elif 'title' in eachSplitVal:
                             title_Str = str(eachSplitVal.replace('title=', '')).strip()
                     addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-                    print "gbc : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
+                    print "gbzygil : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
             except:
                 print "No Pagination found"
 
@@ -1045,27 +1011,19 @@ elif mode == 'GetMovies':
                 currPage = 1
             if 'thiruttuvcd_masala' in subUrl:
                 thiruttuvcd_url = 'http://www.thiruttumasala.com/videos?o=lv&page=' + str(currPage)
-                if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_thiruttuvcd_masala)
             elif 'thiruttuvcd_tamilMovs' in subUrl:
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_thiruttuvcd_tamil)
             elif 'thiruttuvcd_teluguMovs' in subUrl:
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/telugu/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_thiruttuvcd_telugu)
             elif 'thiruttuvcd_hindiMovs' in subUrl:
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/hindi-movies-online/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_thiruttuvcd_hindi)
             elif 'thiruttuvcd_tamilSerials' in subUrl:
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/tv/page/' + str(currPage) + '/'
 
-            print "gbc subUrl= " + subUrl + " , opening url :" + thiruttuvcd_url
+            print "GBZYGIL subUrl= " + subUrl + " , opening url :" + thiruttuvcd_url
             cache.delete("%")
             Dict_res = cache.cacheFunction(getMovList_thiruttuvcd, thiruttuvcd_url)
-            print "<<<<< gbc thiruttuvcd received dict:"
+            print "<<<<< GBZYGIL thiruttuvcd received dict:"
             dump(Dict_res)
             for key, value in Dict_res.iteritems():
                 if 'Paginator' not in key:
@@ -1098,7 +1056,7 @@ elif mode == 'GetMovies':
                         elif 'title' in eachSplitVal:
                             title_Str = str(eachSplitVal.replace('title=', '')).strip()
                     addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-                    print "gbc : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
+                    print "gbzygil : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
             except:
                 print "No Pagination found"
 
@@ -1110,28 +1068,19 @@ elif mode == 'GetMovies':
                 currPage = 1
             if 'rajtamilTVshowsVijayTV' in subUrl:
                 rajTamilurl = 'http://www.rajtamil.com/category/vijay-tv-shows/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_rajtamil_VijayTV)
             elif 'rajtamilTVshowsSunTV' in subUrl:
                 rajTamilurl = 'http://www.rajtamil.com/category/sun-tv-show/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_rajtamil_SunTV)
             elif 'rajtamilTVshowsZeeTamil' in subUrl:
                 rajTamilurl = 'http://www.rajtamil.com/category/zee-tamil-tv-show/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_rajtamil_ZeeTv)
             elif 'rajtamilTVshowsPolimer' in subUrl:
                 rajTamilurl = 'http://www.rajtamil.com/category/polimer-tv-show-2/page/' + str(currPage) + '/'
             else:
                 rajTamilurl = 'http://www.rajtamil.com/category/movies/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_rajtamil_Mov)
-
 #             rajTamilurl = 'http://www.rajtamil.com/category/polimer-tv-show-2/'
-            print "gbc subUrl= " + subUrl + " , opening url :" + rajTamilurl
+            print "GBZYGIL subUrl= " + subUrl + " , opening url :" + rajTamilurl
             Dict_res = cache.cacheFunction(getMovList_rajtamil, rajTamilurl)
 
-            print "<<<<< gbc rajtamil received dict:"
+            print "<<<<< GBZYGIL rajtamil received dict:"
             dump(Dict_res)
             # dumpclean(Dict_res)
             for key, value in Dict_res.iteritems():
@@ -1163,7 +1112,7 @@ elif mode == 'GetMovies':
                             subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
                         elif 'title' in eachSplitVal:
                             title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                    print "gbc SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
+                    print "GBZYGIL SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
                     addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
             except:
                 print "No Pagination found"
@@ -1247,22 +1196,16 @@ elif mode == 'ViewHistory':
        addon.show_small_popup('MalabarTalkies', 'No History yet..', 4000, logo)
 
 elif mode == 'olangalMalayalam':
-    if ALLOW_HIT_CTR == 'true':
-        net.http_GET(HitCtrUrl_olangal)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent'}, {'title': 'Recent Movies'}, img=img_path + '/recent.PNG')
     addon.add_directory({'mode': 'GetSearchQuery'}, {'title': 'Search'}, img=img_path + '/search.PNG')
 elif mode == 'abcmalayalam':
-    if ALLOW_HIT_CTR == 'true':
-        net.http_GET(HitCtrUrl_abcMal)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-Mal'}, {'title': 'Malayalam Movies'}, img=img_path + '/malayalam.PNG')
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-NonMal'}, {'title': 'Non-Malayalam Movies'}, img=img_path + '/nonmalayalam.PNG')
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-shortFilm'}, {'title': 'Short Films'}, img=img_path + '/shortfilms.PNG')
-    if SETTINGS_ENABLEADULT == 'true':
+    if SETTINGS_ENABLEADULT == 'YES':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-sizzling'}, {'title': 'Sizzling(18+)'}, img=img_path + '/18plus.PNG')
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-Comedy'}, {'title': 'Comedy'}, img=img_path + '/comedy.PNG')
 elif mode == 'rajTamil':
-    if ALLOW_HIT_CTR == 'true':
-        net.http_GET(HitCtrUrl_rajtamil)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilRecent'}, {'title': 'Recent Movies'}, img=img_path + '/rajTamil.PNG')
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsVijayTV'}, {'title': 'TV Shows - Vijay TV'}, img=img_path + '/rajTamil.PNG')
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsSunTV'}, {'title': 'TV Shows - Sun TV'}, img=img_path + '/rajTamil.PNG')
@@ -1270,15 +1213,11 @@ elif mode == 'rajTamil':
 #     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsPolimer'}, {'title': 'TV Shows - Polimer TV'}, img=img_path + '/rajTamil.PNG')
 
 elif mode == 'thiruttuvcd':
-    if ALLOW_HIT_CTR == 'true':
-        net.http_GET(HitCtrUrl_thiruttuvcd)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_tamilMovs'}, {'title': 'Tamil Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_teluguMovs'}, {'title': 'Telugu Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_hindiMovs'}, {'title': 'Hindi Movies'})
     #addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_tamilSerials'}, {'title': 'Tamil Serials'})
-    #addon.show_small_popup('MalabarTalkies',SETTINGS_ENABLEADULT, 4000, logo)
-
-    if SETTINGS_ENABLEADULT == 'true':
+    if SETTINGS_ENABLEADULT:
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_masala'}, {'title': 'Thiruttu Masala'})
 
 elif mode == 'main':

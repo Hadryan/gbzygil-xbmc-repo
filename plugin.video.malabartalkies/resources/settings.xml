@@ -2,5 +2,4 @@
 <settings>
     <setting label="EnableAdult" type="bool" id="EnableAdult" default="false"/>
     <setting label="Cache-Timeout" type="number" id="Cache-Timeout" default="24 "/>
-    <setting label="Allow Hit Counter" type="bool" id="AllowHitCtr" default="true"/>    
 </settings>
