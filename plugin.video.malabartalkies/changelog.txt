@@ -1,3 +1,7 @@
+[B]Version 0.1.5[/B]
+- Bug Fixes
+- Optional Hitcounter (so that i know how many ppl are using the addon, to see if i should continue development\add new features. No IP or any other info is captured)
+
 [B]Version 0.1.4[/B]
 - Fixed Thiruttuvcd Hindi Next Page link
 - Thiruttumasala was enabled by default. Changed default to disabled in Addon-Settings
