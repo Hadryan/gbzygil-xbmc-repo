@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <addons>
-<addon id="plugin.video.malabartalkies" version="0.1.4" name="MalabarTalkies" provider-name="gbzygil">
+<addon id="plugin.video.malabartalkies" version="0.1.5" name="MalabarTalkies" provider-name="gbzygil">
     <requires>
         <import addon="xbmc.python" version="2.1.0"/>
         <import addon="script.module.urlresolver" version="1.0.0"/>
