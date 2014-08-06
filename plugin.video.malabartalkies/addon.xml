@@ -15,8 +15,13 @@
     </extension>
     <extension point="xbmc.addon.metadata">
 <<<<<<< HEAD
+<<<<<<< HEAD
         <summary>watch Malayalam,Tamil,Telugu,Hindi movies from olangal.com, rajtamil.com,abcmalayalam.com,thiruttuvcd.com</summary>
         <description>Movies</description>
+=======
+        <summary>watch Malayalam,Tamil movies from olangal.com, rajtamil.com,abcmalayalam.com,thiruttuvcd.com</summary>
+        <description>movies</description>
+>>>>>>> FETCH_HEAD
 =======
         <summary>watch Malayalam,Tamil movies from olangal.com, rajtamil.com,abcmalayalam.com,thiruttuvcd.com</summary>
         <description>movies</description>
