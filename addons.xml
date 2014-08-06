@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <addons>
-<addon id="plugin.video.malabartalkies" version="0.1.5" name="MalabarTalkies" provider-name="gbzygil">
+<addon id="plugin.video.malabartalkies" name="MalabarTalkies" version="0.1.5" provider-name="gbzygil">
     <requires>
         <import addon="xbmc.python" version="2.1.0"/>
         <import addon="script.module.urlresolver" version="1.0.0"/>
@@ -9,20 +9,20 @@
         <import addon="script.module.elementtree"/>
         <import addon="script.module.beautifulsoup"/>
         <import addon="script.module.metahandler" version="1.0.0"/>
-        <import addon="script.common.plugin.cache" version="0.9.0"/>
+        <import addon="script.common.plugin.cache" version="2.5.4"/>
     </requires>
     <extension point="xbmc.python.pluginsource" library="default.py">
         <provides>video</provides>
     </extension>
     <extension point="xbmc.addon.metadata">
-        <summary>watch Malayalam,Tamil,Telugu, Hindi movies from olangal.com, rajtamil.com,abcmalayalam.com, Thiruttuvcd.com</summary>
-        <description>This addon lets you watch Malayalam,Tamil,Telugu, Hindi movies from olangal.com, rajtamil.com,abcmalayalam.com, Thiruttuvcd.com</description>
+        <summary>watch Malayalam,Tamil,Telugu,Hindi movies from olangal.com, rajtamil.com,abcmalayalam.com,thiruttuvcd.com</summary>
+        <description>This addon lets you watch malayalam, Tamil, Telegu, Hindi movies from olangal.com, rajtamil.com,abcmalayalam.com,thiruttuvcd.com</description>
         <platform>all</platform>
     </extension>
 </addon>
 
 <addons>
-<addon id="repository.gbzygil" name="gbzygil's XBMC Addons" version="1.0.0" provider-name="gbzygil">
+<addon id="repository.gbzygil" name="gbzygil's XBMC Addons" version="1.0.1" provider-name="gbzygil">
 	<extension point="xbmc.addon.repository" name="gbzygil's XBMC Addon Repository">
 		<info compressed="false">https://github.com/gbzygil/gbzygil-xbmc-repo/raw/master/addons.xml</info>
 		<checksum>https://github.com/gbzygil/gbzygil-xbmc-repo/raw/master/addons.xml.md5</checksum>
@@ -30,7 +30,7 @@
 	</extension>
 	<extension point="xbmc.addon.metadata">
 		<summary>gbzygil's Addon Repository</summary>
-		<description>Malayalam, Tamil, Telugu, Hindi Movies from olangal.com, rajtamil.com, abcMalayalam.com, thirittuvcd.com !</description>
+		<description>Download and install gbzygil's addon repository, home of the olangal.com and rajtamil.com addons!</description>
 		<disclaimer></disclaimer>
 		<platform>all</platform>
 	</extension>
