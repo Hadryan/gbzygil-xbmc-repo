@@ -15,8 +15,8 @@
         <provides>video</provides>
     </extension>
     <extension point="xbmc.addon.metadata">
-        <summary>watch Malayalam,Tamil,Telugu,Hindi movies from olangal.com, rajtamil.com,abcmalayalam.com,thiruttuvcd.com</summary>
-        <description>This addon lets you watch malayalam, Tamil, Telegu, Hindi movies from olangal.com, rajtamil.com,abcmalayalam.com,thiruttuvcd.com</description>
+        <summary>watch Malayalam,Tamil movies from olangal.com, rajtamil.com,abcmalayalam.com,thiruttuvcd.com</summary>
+        <description>movies</description>
         <platform>all</platform>
     </extension>
 </addon>
