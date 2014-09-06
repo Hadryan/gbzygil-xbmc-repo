@@ -1,3 +1,6 @@
+[B]Version 0.1.7[/B]
+- Added new source for movies : Interval.in
+
 [B]Version 0.1.6[/B]
 - Removed un-necessary folder under olangal menu
 - Movies are now listed in same order as in the website and not random :)
