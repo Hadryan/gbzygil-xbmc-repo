@@ -1,7 +1,27 @@
+from tokenize import String
+REMOTE_DBG = False 
+
+# append pydev remote debugger
+if REMOTE_DBG:
+    # Make pydev debugger works for auto reload.
+    # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
+    try:
+        import pysrc.pydevd as pydevd # with the addon script.module.pydevd, only use `import pydevd`
+    # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse console
+        pydevd.settrace('localhost', stdoutToServer=True, stderrToServer=True)
+    except ImportError:
+        sys.stderr.write("Error: " +
+            "You must add org.python.pydev.debug.pysrc to your PYTHONPATH.")
+        sys.exit(1)
+
 import urlresolver, os, re, sys, urllib2, xbmc, xbmcaddon, xbmcgui, xbmcplugin, xbmcvfs
+from xml.dom.minidom import parse
+import xml.dom.minidom
 from t0mm0.common.addon import Addon
 from t0mm0.common.net import Net
 from bs4 import BeautifulSoup
+from pyga.requests import Tracker, Page, Session, Visitor
+
 import resolvers
     
 #    return resolvers.resolve_url(url, filename)
@@ -11,10 +31,14 @@ try:
 except:
     import storageserverdummy as StorageServer
 
+tracker = Tracker('UA-61503824-1', 'http://github.com/gbzygil/gbzygil-xbmc-repo')
+visitor = Visitor()
+visitor.ip_address = xbmc.getIPAddress()
+session = Session()
+
 addon = Addon('plugin.video.malabartalkies', sys.argv)
 SETTINGS_CACHE_TIMEOUT = addon.get_setting('Cache-Timeout')
 #SETTINGS_CACHE_TIMEOUT = 60
-SETTINGS_ENABLEADULT = addon.get_setting('EnableAdult')
 ALLOW_HIT_CTR = addon.get_setting('AllowHitCtr')
 cache = StorageServer.StorageServer("malabartalkies", SETTINGS_CACHE_TIMEOUT)
 net = Net()
@@ -28,190 +52,55 @@ dlg = xbmcgui.DialogProgress()
 cwd = addon.get_path()
 img_path = cwd + '/resources/img'
 
-HitCtrUrl_Root = 'http://cc.amazingcounters.com/counter.php?i=3174621&c=9524176'
-HitCtrUrl_olangal = 'http://cc.amazingcounters.com/counter.php?i=3174622&c=9524179'
-HitCtrUrl_abcMal = 'http://cc.amazingcounters.com/counter.php?i=3174624&c=9524185'
-HitCtrUrl_abcMal_Mal = 'http://cc.amazingcounters.com/counter.php?i=3174628&c=9524197'
-HitCtrUrl_abcMal_NonMal = 'http://cc.amazingcounters.com/counter.php?i=3174629&c=9524200'
-HitCtrUrl_abcMal_ShortFilms = 'http://cc.amazingcounters.com/counter.php?i=3174630&c=9524203'
-HitCtrUrl_abcMal_Comedy = 'http://cc.amazingcounters.com/counter.php?i=3174631&c=9524206'
-HitCtrUrl_abcMal_Adult = 'http://cc.amazingcounters.com/counter.php?i=3174632&c=9524209'
-HitCtrUrl_rajtamil = 'http://cc.amazingcounters.com/counter.php?i=3174625&c=9524188'
-HitCtrUrl_rajtamil_Mov = 'http://cc.amazingcounters.com/counter.php?i=3174634&c=9524215'
-HitCtrUrl_rajtamil_VijayTV = 'http://cc.amazingcounters.com/counter.php?i=3174635&c=9524218'
-HitCtrUrl_rajtamil_SunTV = 'http://cc.amazingcounters.com/counter.php?i=3174636&c=9524221'
-HitCtrUrl_rajtamil_ZeeTv = 'http://cc.amazingcounters.com/counter.php?i=3174637&c=9524224'
-HitCtrUrl_thiruttuvcd = 'http://cc.amazingcounters.com/counter.php?i=3174626&c=9524191'
-HitCtrUrl_thiruttuvcd_malayalam= 'http://cc.amazingcounters.com/counter.php?i=3177215&c=9531958'
-HitCtrUrl_thiruttuvcd_tamil = 'http://cc.amazingcounters.com/counter.php?i=3174638&c=9524227'
-HitCtrUrl_thiruttuvcd_telugu = 'http://cc.amazingcounters.com/counter.php?i=3174639&c=9524230'
-HitCtrUrl_thiruttuvcd_hindi = 'http://cc.amazingcounters.com/counter.php?i=3174640&c=9524233'
-HitCtrUrl_thiruttuvcd_masala = 'http://cc.amazingcounters.com/counter.php?i=3174641&c=9524236'
-HitCtrUrl_interval ='http://cc.amazingcounters.com/counter.php?i=3177249&c=9532060'
-HitCtrUrl_interval_Feat = 'http://cc.amazingcounters.com/counter.php?i=3177250&c=9532063'
-HitCtrUrl_interval_Mal = 'http://cc.amazingcounters.com/counter.php?i=3177251&c=9532066'
-HitCtrUrl_interval_Tam = 'http://cc.amazingcounters.com/counter.php?i=3177252&c=9532069'
-HitCtrUrl_interval_Telly = 'http://cc.amazingcounters.com/counter.php?i=3177253&c=9532072'
 
-if ALLOW_HIT_CTR == 'true':
-    net.http_GET(HitCtrUrl_Root)
+Private_WorshipSongs_XML='https://raw.githubusercontent.com/gbzygil/gbzygil-xbmc-repo/master/Private_WorshipSongs.xml'
+Private_WorshipMessages_XML='https://raw.githubusercontent.com/gbzygil/gbzygil-xbmc-repo/master/Private_WorshipMessages.xml'
+Public_Shared_XML='https://raw.githubusercontent.com/gbzygil/gbzygil-xbmc-repo/master/Pubic_Shared.xml'
+
 
 
 if not xbmcvfs.exists(RootDir + '/thumbs'):
     xbmcvfs.mkdirs(RootDir + '/thumbs')
 
-def GetHttpData(url):
-#     log("%s::url - %s" % (sys._getframe().f_code.co_name, url))
-    req = urllib2.Request(url)
-    req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
-
-    try:
-        response = urllib2.urlopen(req)
-        httpdata = response.read()
-        if response.headers.get('content-encoding', None) == 'gzip':
-            httpdata = gzip.GzipFile(fileobj=StringIO.StringIO(httpdata)).read()
-        charset = response.headers.getparam('charset')
-        response.close()
-    except:
-#         log("%s (%d) [%s]" % (
-#                sys.exc_info()[2].tb_frame.f_code.co_name,
-#                sys.exc_info()[2].tb_lineno,
-#                sys.exc_info()[1]
-#                ))
-        return ''
-    match = re.compile('<meta http-equiv=["]?[Cc]ontent-[Tt]ype["]? content="text/html;[\s]?charset=(.+?)"').findall(httpdata)
-    if match:
-        charset = match[0]
-    else:
-        match = re.compile('<meta charset="(.+?)"').findall(httpdata)
-        if match:
-            charset = match[0]
-    if charset:
-        charset = charset.lower()
-        if (charset != 'utf-8') and (charset != 'utf8'):
-            httpdata = httpdata.decode(charset, 'ignore').encode('utf8', 'ignore')
-    return httpdata
-
    
-class youkuDecoder:
-    import math
-    def __init__(self):
-        return
+def getMovList_KitMovie(KitMovie_url):
+        print "================ checking cache hit : function getMovList_KitMovie was called with : " + KitMovie_url
+        Dict_movlist = {}
 
-    def getFileIDMixString(self, seed):
-        mixed = []
-        source = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/\:._-1234567890")
-        seed = float(seed)
-        for i in range(len(source)):
-            seed = (seed * 211 + 30031) % 65536
-            index = math.floor(seed / 65536 * len(source))
-            mixed.append(source[int(index)])
-            source.remove(source[int(index)])
-        return mixed
+        req = urllib2.Request(KitMovie_url)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
+        response = urllib2.urlopen(req)
+        link=response.read()
+        response.close()
+        soup = BeautifulSoup(link)
+        ItemNum=0
 
-    def getFileId(self, fileId, seed):
-        mixed = self.getFileIDMixString(seed)
-        ids = fileId.split('*')
-        realId = []
-        for i in range(0, len(ids) - 1):
-            realId.append(mixed[int(ids[i])])
-        return ''.join(realId)
+        for row in soup.findAll("link", { "rel":"next" }):
+            print "<<<<<<<<<<<<<  found pagination "
+            nxtPgUrl= row.get('href')
+            re1='.*?'    # Non-greedy match on filler
+            re2='(\\d+)'    # Integer Number 1
+            rg = re.compile(re1+re2,re.IGNORECASE|re.DOTALL)
+            m = rg.search(nxtPgUrl)
+            if  m:
+                int1=m.group(1)
+                print "<<<<<<<<<<<<<  found next pg " + str(int(int1)-1)
+                paginationText = "( "+ str(int(int1)) +")\n"
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(int(int1)-1) + ',title=Next Page.. ' + paginationText})
 
-def selResolution(streamtypes):
-    ratelist = []
-    for i in range(0, len(streamtypes)):
-        if streamtypes[i] == 'flv': ratelist.append([3, 'flv', i])
-        if streamtypes[i] == 'mp4': ratelist.append([2, 'mp4', i])
-        if streamtypes[i] == 'hd2': ratelist.append([1, 'hd2', i])
-#     ratelist.sort()
-#     if len(ratelist) > 1:
-#         sel = 0
-#         while sel < len(ratelist) - 1 and resolution > ratelist[sel][0]: sel += 1
-#     else:
-        sel = 0
-    return streamtypes[ratelist[sel][2]], ratelist[sel][1]
+        for row in soup.findAll("div", { "class":"col-sm-4 col-xs-6 item" }):
+            ItemNum=ItemNum+1
+            img=row.find('img')['src']
+            currMovObj=row.find('h3')
+            movTitle=currMovObj.text
+            
+            for currMovObj in row.findAll("a"):
+                if currMovObj.has_attr('href'):                 
+                    link=currMovObj.get('href')
+                    Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + link + ', imgLink=' + img+', MovTitle='+movTitle})
+                    break
 
-def YoukuResolver(media_id):
-    if sys.version_info < (2, 7):
-        import simplejson
-    else:
-        import json as simplejson
-
-    url = 'http://v.youku.com/player/getPlayList/VideoIDS/%s' % (media_id)
-    link = GetHttpData(url)
-    json_response = simplejson.loads(link)
-
-    name = ""
-    try:
-        typeid, typename = selResolution(json_response['data'][0]['streamtypes'])
-        print " JSON response =typeid, typename  " + typeid + ',' + typename
-
-        if typeid:
-          seed = json_response['data'][0]['seed']
-          fileId = json_response['data'][0]['streamfileids'][typeid].encode('utf-8')
-          fileId = youkuDecoder().getFileId(fileId, seed)
-          if typeid == 'mp4':
-              type = 'mp4'
-          else:
-              type = 'flv'
-          urls = []
-          for i in range(len(json_response['data'][0]['segs'][typeid])):
-              no = '%02X' % i
-              k = json_response['data'][0]['segs'][typeid][i]['k'].encode('utf-8')
-              urls.append('http://f.youku.com/player/getFlvPath/sid/00_00/st/%s/fileid/%s%s%s?K=%s' % (type, fileId[:8], no, fileId[10:], k))
-              print " append URL =" + 'http://f.youku.com/player/getFlvPath/sid/00_00/st/%s/fileid/%s%s%s?K=%s' % (type, fileId[:8], no, fileId[10:], k)
-
-          stackurl = 'stack://' + ' , '.join(urls)
-          name = '%s[%s]' % (name, typename)
-          print "YoukuResolver returning medial url = " + stackurl + " for media id=" + media_id
-          return stackurl
-#     except Exception:
-#         dlg.close
-#         buggalo.onExceptionRaised()
-    except:
-          print "YoukuResolver : Error in parsing Youku jSon"
-
-def dump(obj, nested_level=0, output=sys.stdout):
-    spacing = '   '
-    if type(obj) == dict:
-        print >> output, '%s{' % ((nested_level) * spacing)
-        for k, v in obj.items():
-            if hasattr(v, '__iter__'):
-                print >> output, '%s%s:' % ((nested_level + 1) * spacing, str(k).encode('utf8'))
-                dump(v, nested_level + 1, output)
-            else:
-                print >> output, '%s%s: %s' % ((nested_level + 1) * spacing, str(k).encode('utf8'), str(v).encode('utf8'))
-        print >> output, '%s}' % (nested_level * spacing)
-    elif type(obj) == list:
-        print >> output, '%s[' % ((nested_level) * spacing)
-        for v in obj:
-            if hasattr(v, '__iter__'):
-                dump(v, nested_level + 1, output)
-            else:
-                print >> output, '%s%s' % ((nested_level + 1) * spacing, str(v).encode('utf8'))
-        print >> output, '%s]' % ((nested_level) * spacing)
-    else:
-        print >> output, '%s%s' % (nested_level * spacing, obj)
-
-def LoboVideoResolver(media_id):
-    import jsunpack
-    retval = ''
-    url = 'http://lobovideo.com/' + media_id
-    print "LoboVideoResolver extracting media url from = " + url
-#     net = Net()
-    link = net.http_GET(url).content
-    soup = BeautifulSoup(link)
-    for eachItem in soup.findAll("div", { "id":"player_code"}):
-        html = str(eachItem)
-        r = re.findall("text/javascript'>\n.+?(eval\(function\(p,a,c,k,e,d\).+?).+?</script>", html, re.I | re.M)
-        unpacked = jsunpack.unpack(html)
-        txt = unpacked
-        txt = txt.replace('\n', ' ').replace('\r', '')
-        print "LoboVideoResolver jsunpacked = " + txt
-        r = re.findall(r"file\',\'(.+?)\'", txt)
-        retval = r[0]
-        print "LoboVideoResolver returning medial url = " + retval + " for media id=" + media_id
-    return retval
+        return Dict_movlist
 
 def getMovList_thiruttuvcd(thiruttuvcd_url):
         print "================ checking cache hit : function getMovList_thiruttuvcd was called"
@@ -515,13 +404,7 @@ def getMovList_ABCmal(abcmalUrl):
 
 def getMovLinksForEachMov(url):
 
-#     with open(RootDir + "/history.dat", 'a') as target:
-#         target.write(str(addon.queries.get('title', False)) + ',' + str(addon.queries.get('url', False)) + ',' + str(addon.queries.get('fanarturl', False)) + '\r\n')
-
     url = addon.queries.get('url', False)
-#     if url == False:
-#         url = addon.queries.get('subUrl', False)
-
     if 'olangal.com' in url:
         movTitle = str(addon.queries.get('title', False))
         (head, tail) = os.path.split(url)
@@ -552,18 +435,6 @@ def getMovLinksForEachMov(url):
                   addon.add_video_item({'host': mediaHost, 'media_id': media_id, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + mediaHost + ' (' + media_id + ')'})
 
 #                   Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaLink})
-             elif 'lobovideo.php' in str(vidLink):
-                  (head, tail) = os.path.split(vidLink['href'])
-                  media_idArr = tail.split('=')
-                  media_id = media_idArr[1]
-                  mediaHost = 'lobovideo.com'
-                  mediaUrl = LoboVideoResolver(media_id)
-                  if mediaUrl:
-                      print ' From vidLink = ' + str(mediaUrl) + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost
-                      li = xbmcgui.ListItem(movTitle + "," + mediaHost + ' (' + media_id + ')')
-                      li.setProperty('IsPlayable', 'true')
-                      xbmcplugin.addDirectoryItem(int(sys.argv[1]), mediaUrl, li)
-#                       Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaUrl})
              elif 'nowvideo.php' in str(vidLink):
                   (head, tail) = os.path.split(vidLink['href'])
                   media_idArr = tail.split('=')
@@ -572,19 +443,6 @@ def getMovLinksForEachMov(url):
                   print ' From vidLink = ' + vidLink['href'] + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost
                   addon.add_video_item({'host': mediaHost, 'media_id': media_id, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + mediaHost + ' (' + media_id + ')'})
 #                   Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaLink})
-             elif 'youku.php' in str(vidLink):
-                  youKuswf = 'http://static.youku.com/v1.0.0389/v/swf/loader.swf?VideoIDS='
-                  (head, tail) = os.path.split(vidLink['href'])
-                  media_idArr = tail.split('=')
-                  media_id = media_idArr[1]
-                  mediaHost = 'youku.com'
-                  mediaUrl = YoukuResolver(media_id)
-                  if mediaUrl:
-                      print ' From vidLink = ' + mediaUrl + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost + ', movTitle=' + movTitle
-                      li = xbmcgui.ListItem(movTitle + "," + mediaHost + ' (' + media_id + ')')
-                      li.setProperty('IsPlayable', 'true')
-                      xbmcplugin.addDirectoryItem(int(sys.argv[1]), mediaUrl, li)
-#                       Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaUrl})
              elif 'putlocker.php' in str(vidLink):
                   (head, tail) = os.path.split(vidLink['href'])
                   media_idArr = tail.split('=')
@@ -599,7 +457,8 @@ def getMovLinksForEachMov(url):
                   media_id = media_idArr[1]
                   mediaHost = 'youtube.com'
                   print ' From vidLink = ' + vidLink['href'] + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost
-                  addon.add_video_item({'host': mediaHost, 'media_id': media_id, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + mediaHost + ' (' + media_id + ')'})
+                  addon.add_video_item({'host': mediaHost, 'media_id': media_id},{'title': movTitle})
+                  #addon.add_video_item({'host': mediaHost, 'media_id': media_id, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + mediaHost + ' (' + media_id + ')'})
 #                   Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaLink})
              elif 'veoh.php' in str(vidLink):
                   (head, tail) = os.path.split(vidLink['href'])
@@ -811,20 +670,20 @@ def getMovLinksForEachMov(url):
             soup = BeautifulSoup(link)
             # print soup.prettify()
             try:
-                re1='.*?'	# Non-greedy match on filler
-                re2='(var)'	# Word 1
-                re3='(\\s+)'	# White Space 1
-                re4='(cnf)'	# Word 2
-                re5='(=)'	# Any Single Character 1
-                re6='(.)'	# Any Single Character 2
-                re7='(http)'	# Word 3
-                re8='(:)'	# Any Single Character 3
-                re9='(\\/)'	# Any Single Character 4
-                re10='(\\/www\\.thiruttumasala\\.com\\/media\\/nuevo\\/config\\.php)'	# Unix Path 1
-                re11='(.)'	# Any Single Character 5
-                re12='(key)'	# Word 4
-                re13='(=)'	# Any Single Character 6
-                re14='(\\d+)'	# Integer Number 1
+                re1='.*?'    # Non-greedy match on filler
+                re2='(var)'    # Word 1
+                re3='(\\s+)'    # White Space 1
+                re4='(cnf)'    # Word 2
+                re5='(=)'    # Any Single Character 1
+                re6='(.)'    # Any Single Character 2
+                re7='(http)'    # Word 3
+                re8='(:)'    # Any Single Character 3
+                re9='(\\/)'    # Any Single Character 4
+                re10='(\\/www\\.thiruttumasala\\.com\\/media\\/nuevo\\/config\\.php)'    # Unix Path 1
+                re11='(.)'    # Any Single Character 5
+                re12='(key)'    # Word 4
+                re13='(=)'    # Any Single Character 6
+                re14='(\\d+)'    # Integer Number 1
 
                 rg = re.compile(re1+re2+re3+re4+re5+re6+re7+re8+re9+re10+re11+re12+re13+re14,re.IGNORECASE|re.DOTALL)
                 m = rg.search(str(soup))
@@ -942,6 +801,66 @@ def getMovLinksForEachMov(url):
             for idx, s in enumerate(sources):
                 addon.add_video_item({'host': s.get_host() , 'media_id': s.get_media_id(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
 
+    elif 'kitmovie.com' in url:
+            url = addon.queries.get('url', False)
+            movTitle = str(addon.queries.get('title', False))
+            fanarturl = str(addon.queries.get('img', False))
+            print ' current movie url : ' + url
+            print ' current movie fanarturl : ' + fanarturl
+            print ' current movie title : ' + movTitle
+            
+            link = net.http_GET(url).content
+            soup = BeautifulSoup(link,'html5lib')
+            sources = []
+            
+            for row in soup.findAll("div", { "class":"videoWrapper player" }):
+                for currMovObj in row.findAll("iframe"):
+                    if currMovObj.has_attr('src'):
+                        vidurl=currMovObj.get('src')
+                        #vidurl="http://www.youtube.com/5JTqw9sLjTs"
+                        print "lets see if ["+vidurl+"] can be resolved"
+                        if urlresolver.HostedMediaFile(vidurl).valid_url():
+                            print 'resolvable! using isvalid_url'
+                        hmf = urlresolver.HostedMediaFile(vidurl)
+                        if hmf:
+                            print '--------------- yay! we can resolve this one'
+                        else:
+                            print '--------------- sorry no resolvers available to handle this one.'
+                        if 'embed' in vidurl:
+                            print "********************** THIS IS A LINK WITH EMBED : " + vidurl 
+                            
+
+                        hosted_media = urlresolver.HostedMediaFile(vidurl)
+                        #print ' ' + movTitle + ' source found : ' + vidurl + ', hosted_media : ' + str(hosted_media)
+                        if urlresolver.HostedMediaFile(vidurl).valid_url():
+                            sources.append(hosted_media)
+                        else:
+                            print '    not resolvable by urlresolver!'
+
+                        #print "Primary url = " + currMovObj.get('src')
+            for row in soup.findAll("a", { "class":"btn btn-success btn-lg btn-block  " }):
+                print "Secondary url=" + row.get('href')
+                vidurl=row.get('href')
+                hosted_media = urlresolver.HostedMediaFile(vidurl)
+                print ' ' + movTitle + ' source found : ' + vidurl + ', hosted_media : ' + str(hosted_media)
+                if urlresolver.HostedMediaFile(vidurl).valid_url():
+                    sources.append(hosted_media)
+                else:
+                    print '    not resolvable by urlresolver!'
+            sources = urlresolver.filter_source_list(sources)
+            for idx, s in enumerate(sources):
+                print "#### Adding from enum after filter : "
+                print 'url = ' + s.get_url()
+                print 'host = ' + s.get_host()
+                print 'media_id = '+ s.get_media_id()
+                if s.get_media_id():
+                    if s.get_host():
+                        print "have proper media_id and host"
+                        addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_url() + ')'}, img=fanarturl)
+                else:
+                    #addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_url() + ')'}, img=fanarturl)
+                    addon.add_video_item({'url': s.get_url()},{'title': movTitle},img=fanarturl,fanart=fanarturl)
+
     elif 'interval.in' in url:
             url = addon.queries.get('url', False)
             movTitle = str(addon.queries.get('title', False))
@@ -975,7 +894,26 @@ def getMovLinksForEachMov(url):
             for idx, s in enumerate(sources):
                 addon.add_video_item({'host': s.get_host() , 'media_id': s.get_media_id(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
 
-
+def get_tag_value(node):
+    """retrieves value of given XML node
+    parameter:
+    node - node object containing the tag element produced by minidom
+ 
+    return:
+    content of the tag element as string
+    """
+ 
+    xml_str = node.toxml() # flattens the element to string
+ 
+    # cut off the base tag to get clean content:
+    start = xml_str.find('>')
+    if start == -1:
+        return ''
+    end = xml_str.rfind('<')
+    if end < start:
+        return ''
+ 
+    return xml_str[start + 1:end]
 print"############# MAIN MENU ##################"
 print 'MODE = ' + str(addon.queries.get('mode', False))
 print 'TITLE = ' + str(addon.queries.get('title', False))
@@ -983,7 +921,10 @@ print 'URL = ' + str(addon.queries.get('url', False))
 print 'SUBURL = ' + str(addon.queries.get('subUrl', False))
 print 'CURRPAGE = ' + str(addon.queries.get('currPage', False))
 print"########################################"
-
+CurrUrl=str(addon.queries.get('url', False))
+if ALLOW_HIT_CTR == 'true':
+    if CurrUrl != False:
+        tracker.track_pageview(Page("/"+str(CurrUrl)), session, visitor)
 if play:
     print "********* Gonna add to history and start playing"
     print str(addon.queries)
@@ -996,16 +937,15 @@ if play:
     url = addon.queries.get('url', '')
     host = addon.queries.get('host', '')
     media_id = addon.queries.get('media_id', '')
-
-    if host == 'youku':
-#         addon.resolve_url(False)
-        a = 1
-    elif 'lobovideo' in url:
-#         addon.resolve_url(False)
-        a = 2
+   
+    print "********* In Play with : url = "+url +", host="+host+ ", media_id="+media_id
+    if url:
+        stream_url = urlresolver.HostedMediaFile(url).resolve()
     else:
-        stream_url = urlresolver.HostedMediaFile(url=url, host=host, media_id=media_id).resolve()
-        addon.resolve_url(stream_url)
+        stream_url = urlresolver.HostedMediaFile(host=host, media_id=media_id).resolve()
+
+    print "** FINAL STREAM URL = " + str(stream_url)
+    addon.resolve_url(stream_url)
 
 elif mode == 'resolver_settings':
     urlresolver.display_settings()
@@ -1017,6 +957,40 @@ elif mode == 'individualmovie':
 #     print "@@@@@@@@@@@@@@ Dict of MovSources received :"
 #     dump(ReceivedDict)
 
+elif 'Worship' in mode:
+        print "Inside WorshipSongs"
+        # Open XML document using minidom parser
+        if mode == 'Worship Songs':
+            worshipUrl= urllib2.urlopen(Private_WorshipSongs_XML)
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Worship/Songs'), session, visitor)
+        elif mode == 'Worship Messages':
+            worshipUrl= urllib2.urlopen(Private_WorshipMessages_XML)
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Worship/Messages'), session, visitor)
+        #parser.parse(toursurl)
+        DOMTree = xml.dom.minidom.parse(worshipUrl)
+        collection = DOMTree.documentElement
+        if collection.hasAttribute("shelf"):
+           print "Root element : %s" % collection.getAttribute("shelf")
+        
+        # Get all the movies in the collection
+        movies = collection.getElementsByTagName("movie")
+        
+        # Print detail of each movie.
+        for movie in movies:
+           print "*****Movie*****"
+           if movie.hasAttribute("title"):
+              WorshipItem_title=unicode(movie.getAttribute("title"))
+              WorshipItem_url=get_tag_value(movie.getElementsByTagName('url')[0])
+              WorshipItem_img=get_tag_value(movie.getElementsByTagName('img')[0])
+              print "title: %s" % WorshipItem_title
+              print "url: %s" % WorshipItem_url
+              print "img: %s" % WorshipItem_img
+              #addon.add_video_item({'url':Worship_url, 'img':'', 'title': Worship_title}, {'title': Worship_title}, img='')
+              addon.add_video_item({'url': WorshipItem_url},{'title': WorshipItem_title},img=WorshipItem_img)
+
+              
 elif mode == 'GetMovies':
     dlg = xbmcgui.DialogProgress()
     dlg.create("Malabar Talkies", "Fetching movies and caching...\nWill be faster next time")
@@ -1033,23 +1007,19 @@ elif mode == 'GetMovies':
         if subUrl == 'ABCMalayalam-Mal':
             abcmalUrl = base_url + '/movies?start=' + str(currPage)
             if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_Mal)
+                tracker.track_pageview(Page('/ABCMalayalam/Malayalam'), session, visitor)
         elif subUrl == 'ABCMalayalam-NonMal':
             abcmalUrl = base_url + '/non-malayalam?start=' + str(currPage)
             if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_NonMal)
+                tracker.track_pageview(Page('/ABCMalayalam/Non-Malayalam'), session, visitor)
         elif subUrl == 'ABCMalayalam-shortFilm':
             abcmalUrl = base_url + '/short-film?start=' + str(currPage)
             if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_ShortFilms)
-        elif subUrl == 'ABCMalayalam-sizzling':
-            abcmalUrl = base_url + '/sizzling?start=' + str(currPage)
-            if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_Adult)
+                tracker.track_pageview(Page('/ABCMalayalam/ShortFilm'), session, visitor)
         elif subUrl == 'ABCMalayalam-Comedy':
             abcmalUrl = base_url + '/Comedy?start=' + str(currPage)
             if ALLOW_HIT_CTR == 'true':
-                net.http_GET(HitCtrUrl_abcMal_Comedy)
+                tracker.track_pageview(Page('/ABCMalayalam/Comedy'), session, visitor)
 
         Dict_res = cache.cacheFunction(getMovList_ABCmal, abcmalUrl)
 #         print "<<<<< received DICT="
@@ -1097,6 +1067,8 @@ elif mode == 'GetMovies':
             print "No pagination found"
 
     elif 'olangalMovies-Recent' in subUrl:
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Olangal'), session, visitor)
             currPage = addon.queries.get('currPage', False)
             if not currPage:
                 currPage = 0
@@ -1148,34 +1120,114 @@ elif mode == 'GetMovies':
                     print " : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
             except:
                 print "No Pagination found"
+    
+        
+           
+    elif ('KitMovies' in subUrl):
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 0
+        currPage = int(currPage) + 1 
+                                     
+        if subUrl == 'KitMovies_Malayalam':
+            Kitmovies_url = 'http://www.kitmovie.com/malayalam/categories/movie/page/' + str(currPage)+'/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/KitMovie/Malayalam/Movies'), session, visitor) 
+        elif subUrl == 'KitMovies_MalayalamSongs':
+            Kitmovies_url = 'http://www.kitmovie.com/malayalam/categories/songs/page/' + str(currPage)+'/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/KitMovie/Malayalam/Songs'), session, visitor)            
+        elif subUrl == 'KitMovies_Tamil':
+            Kitmovies_url = 'http://www.kitmovie.com/tamil/categories/movie/page/' + str(currPage)+'/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/KitMovie/Tamil/Movies'), session, visitor)
+        elif subUrl == 'KitMovies_TamilSongs':
+            Kitmovies_url = 'http://www.kitmovie.com/tamil/categories/songs/page/' + str(currPage)+'/' 
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/KitMovie/Tamil/Songs'), session, visitor)           
+        elif subUrl == 'KitMovies_Hindi':
+            Kitmovies_url = 'http://www.kitmovie.com/hindi/categories/movies/page/' + str(currPage)+'/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/KitMovie/Hindi/Movies'), session, visitor)
+        elif subUrl == 'KitMovies_HindiSongs':
+            Kitmovies_url = 'http://www.kitmovie.com/hindi/categories/songs/page/' + str(currPage)+'/' 
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/KitMovie/Hindi/Songs'), session, visitor)           
+        print " subUrl= " + subUrl + " , opening url :" + Kitmovies_url
+        cache.delete("%")
 
+        Dict_res = cache.cacheFunction(getMovList_KitMovie, Kitmovies_url)
+        keylist = Dict_res.keys()
+        keylist.sort()
+        MovTitle_Str=""
+        fanarturl_Str=""
+        fullLink_Str=""
+        mode_Str=""
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    #print "inside dict loop with eachSplitVal=" + eachSplitVal
+                    if 'mode' in eachSplitVal:
+                        mode_Str = eachSplitVal.replace('mode=', '')
+                    elif 'url' in eachSplitVal:
+                        fullLink_Str = eachSplitVal.replace('url=', '')
+                    elif 'imgLink' in eachSplitVal:
+                        fanarturl_Str = eachSplitVal.replace('imgLink=', '')
+                        #fanarturl_Str = BeautifulSoup(html_encoded_string, convertEntities=BeautifulSoup.HTML_ENTITIES)
+
+                    elif 'MovTitle' in eachSplitVal:
+                        MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()  
+                if MovTitle_Str:
+                    #mode_Str = mode_Str.encode('utf8')
+                    fanarturl_Str = fanarturl_Str.strip()
+                    print "adding : " + MovTitle_Str
+                    addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str, 'img':fanarturl_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                subUrl_Str=str(addon.queries.get('subUrl', False))
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
+                print " : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
+        except:
+            print "No Pagination found"    
+                       
     elif ('thiruttuvcd' in subUrl) & ('MP3' not in subUrl):
             currPage = addon.queries.get('currPage', False)
             if not currPage:
                 currPage = 1
-            if 'thiruttuvcd_masala' in subUrl:
-                thiruttuvcd_url = 'http://www.thiruttumasala.com/videos?o=lv&page=' + str(currPage)
-                if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_thiruttuvcd_masala)
-            elif 'thiruttuvcd_MalayalamMovs' in subUrl:
+            if  'thiruttuvcd_MalayalamMovs' in subUrl:
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/malayalam/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_thiruttuvcd_malayalam)            
+                    tracker.track_pageview(Page('/ThiruttuVcd/Malayalam'), session, visitor)          
             elif 'thiruttuvcd_tamilMovs' in subUrl:
                 #thiruttuvcd_url = 'http://www.thiruttuvcd.me/page/' + str(currPage) + '/'
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/tamil-movies-online/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_thiruttuvcd_tamil)
+                    tracker.track_pageview(Page('/ThiruttuVcd/TamilMovies'), session, visitor) 
             elif 'thiruttuvcd_teluguMovs' in subUrl:
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/telugu/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_thiruttuvcd_telugu)
+                    tracker.track_pageview(Page('/ThiruttuVcd/Telugu'), session, visitor) 
             elif 'thiruttuvcd_hindiMovs' in subUrl:
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/hindi-movies-online/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_thiruttuvcd_hindi)
+                    tracker.track_pageview(Page('/ThiruttuVcd/Hindi'), session, visitor) 
             elif 'thiruttuvcd_tamilSerials' in subUrl:
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/tv/page/' + str(currPage) + '/'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/ThiruttuVcd/TamilSerials'), session, visitor) 
 
             print " subUrl= " + subUrl + " , opening url :" + thiruttuvcd_url
             cache.delete("%")
@@ -1236,19 +1288,19 @@ elif mode == 'GetMovies':
             if 'interval_MalayalamMovs' in subUrl:
                 interval_url = 'http://interval.in/index.php?p=&searching=[Malayalam]'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_interval_Mal)
+                    tracker.track_pageview(Page('/Interval/Malayalam'), session, visitor)
             elif 'interval_TeluguMovs' in subUrl:
                 interval_url = 'http://interval.in/index.php?p=&searching=[Telugu]'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_interval_Telly)
+                    tracker.track_pageview(Page('/Interval/Telugu'), session, visitor)
             elif 'interval_TamilMovs' in subUrl:
                 interval_url = 'http://interval.in/index.php?p=&searching=[Tamil]' 
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_interval_Tam)                
+                    tracker.track_pageview(Page('/Interval/Tamil'), session, visitor)              
             elif 'interval_featuredMovs' in subUrl:
                 interval_url = 'http://interval.in/'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_interval_Feat)
+                    tracker.track_pageview(Page('/Interval'), session, visitor)
             elif 'interval_NextPage' in subUrl:
                 interval_url = addon.queries.get('url', False)
               
@@ -1257,7 +1309,7 @@ elif mode == 'GetMovies':
             keylist = Dict_res.keys()
             keylist.sort()
             print "<<<<<  interval received dict:"
-            dump(Dict_res)
+            #dump(Dict_res)
             MovTitle_Str=""
             fanarturl_Str=""
             fullLink_Str=""
@@ -1305,21 +1357,23 @@ elif mode == 'GetMovies':
             if 'rajtamilTVshowsVijayTV' in subUrl:
                 rajTamilurl = 'http://www.rajtamil.com/category/vijay-tv-shows/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_rajtamil_VijayTV)
+                    tracker.track_pageview(Page('/Rajtamil/TVshowsVijayTV'), session, visitor)
             elif 'rajtamilTVshowsSunTV' in subUrl:
                 rajTamilurl = 'http://www.rajtamil.com/category/sun-tv-show/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_rajtamil_SunTV)
+                    tracker.track_pageview(Page('/Rajtamil/TVshowsSunTV'), session, visitor)
             elif 'rajtamilTVshowsZeeTamil' in subUrl:
                 rajTamilurl = 'http://www.rajtamil.com/category/zee-tamil-tv-show/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_rajtamil_ZeeTv)
+                    tracker.track_pageview(Page('/Rajtamil/TVshowsZeeTamilTV'), session, visitor)
             elif 'rajtamilTVshowsPolimer' in subUrl:
                 rajTamilurl = 'http://www.rajtamil.com/category/polimer-tv-show-2/page/' + str(currPage) + '/'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/Rajtamil/TVshowsPolimerTV'), session, visitor)
             else:
                 rajTamilurl = 'http://www.rajtamil.com/category/movies/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
-                    net.http_GET(HitCtrUrl_rajtamil_Mov)
+                    tracker.track_pageview(Page('/Rajtamil'), session, visitor)
 
 #             rajTamilurl = 'http://www.rajtamil.com/category/polimer-tv-show-2/'
             print " subUrl= " + subUrl + " , opening url :" + rajTamilurl
@@ -1378,133 +1432,68 @@ elif mode == 'GetMovies':
 
     dlg.close()
 
-elif mode == '200':
-    with open(RootDir + "/favs.dat", 'a') as target:
-        target.write(str(addon.queries.get('name', False)) + ',' + str(addon.queries.get('url', False)) + ',' + str(addon.queries.get('fanarturl', False)) + '\r\n')
-    addon.show_small_popup('MalabarTalkies', str(addon.queries.get('name', False)) + ' added to favs', 4000, logo)
-
-elif mode == 'ViewFavorites':
-    print str(addon.queries)
-    try:
-        for line in open(RootDir + "/favs.dat", 'r').readlines():
-            names, fullLink, imgfullLink = line.split(",")
-            if "rajtamil" in fullLink:
-                addon.add_directory({'mode': 'individualmovie_rajtamil', 'url': fullLink, 'fanarturl': imgfullLink , 'title': names}, {'title': names}, img=imgfullLink)
-            else:
-                addon.add_directory({'mode': 'individualmovie', 'url': fullLink, 'fanarturl': imgfullLink , 'title': names}, {'title': names}, img=imgfullLink)
-            print ' adding movie =' + names + ' ,url =' + fullLink + ' ,fanart = ' + imgfullLink
-    except IOError:
-       addon.show_small_popup('MalabarTalkies', 'No favs yet..', 4000, logo)
-
-elif mode == 'GetSearchQuery':
-    keyboard = xbmc.Keyboard()
-    keyboard.setHeading('Search Movies')
-    keyboard.doModal()
-    if keyboard.isConfirmed():
-        search_text = keyboard.getText()
-#         dlg = xbmcgui.DialogProgress()
-        dlg.create("Malabar Talkies", "Searching for " + search_text + "..")
-        dlg.update(0)
-        searchurl = 'http://olangal.com/component/search/?searchword=' + str(search_text) + '&searchphrase=all'
-
-#         req = urllib2.Request(searchurl)
-#         req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
-#         response = urllib2.urlopen(req)
-#         link = response.read()
-#         response.close()
-        link = net.http_GET(searchurl).content
-        Searchsoup = BeautifulSoup(link, 'html5lib')
-        for eachItem in Searchsoup.findAll("dt", { "class":"result-title" }):
-            searchResNumber = eachItem.contents[0].strip()
-            links = eachItem.find_all('a')
-            for link in links:
-                name = link.contents[0].strip()
-                fullLink = 'http://olangal.com' + link.get('href').strip()
-                print searchResNumber + ' ' + name + ' ' + fullLink
-                addon.add_directory({'mode': 'individualmovie', 'url': fullLink, 'title': str(name)}, {'title': str(searchResNumber) + ' ' + str(name)})
-        dlg.close
-elif mode == 'ViewHistory':
-#     addon.add_directory({'mode': 'clear_history', 'title': 'Clear History'}, {'title':'Clear History' })
-#     a = 1
-    try:
-        for line in open(RootDir + "/history.dat", 'r').readlines():
-            title, host, media_id, img = line.split(",")
-#             print "-------"
-#             print title
-#             print host
-#             print media_id
-#             print img
-#             print "-------"
-            title = title.replace('title=', '').strip()
-            host = host.replace('host=', '').strip()
-            media_id = media_id.replace('media_id=', '').strip()
-            img = media_id.replace('img=', '').strip()
-#             print "title=" + title
-#             addon.add_video_item({'host': host , 'media_id': media_id, 'img':img, 'title': title})
-#             print "-------"
-#             print title
-#             print host
-#             print media_id
-#             print img
-#             print "-------"
-            addon.add_video_item({'host': host, 'media_id': media_id, 'AddtoHist':False}, {'title': title, 'img':img, 'AddtoHist':True})
-
-#             addon.add_directory({'mode': 'individualmovie', 'url': fullLink, 'fanarturl': imgfullLink , 'title': names}, {'title': names}, img=imgfullLink)
-
-    except IOError:
-       addon.show_small_popup('MalabarTalkies', 'No History yet..', 4000, logo)
-
 elif mode == 'olangalMalayalam':
     if ALLOW_HIT_CTR == 'true':
-        net.http_GET(HitCtrUrl_olangal)
+        tracker.track_pageview(Page('/Olangal_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent'}, {'title': 'Recent Movies'})
-    addon.add_directory({'mode': 'GetSearchQuery'}, {'title': 'Search'})
 elif mode == 'abcmalayalam':
     if ALLOW_HIT_CTR == 'true':
-        net.http_GET(HitCtrUrl_abcMal)
+        tracker.track_pageview(Page('/AbcMalayalam_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-Mal'}, {'title': 'Malayalam Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-NonMal'}, {'title': 'Non-Malayalam Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-shortFilm'}, {'title': 'Short Films'})
-    if SETTINGS_ENABLEADULT == 'true':
-        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-sizzling'}, {'title': 'Sizzling(18+)'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-Comedy'}, {'title': 'Comedy'})
 elif mode == 'rajTamil':
     if ALLOW_HIT_CTR == 'true':
-        net.http_GET(HitCtrUrl_rajtamil)
+        tracker.track_pageview(Page('/Rajtamil_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilRecent'}, {'title': 'Recent Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsVijayTV'}, {'title': 'TV Shows - Vijay TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsSunTV'}, {'title': 'TV Shows - Sun TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsZeeTamil'}, {'title': 'TV Shows - Zee Tamil'})
-#     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsPolimer'}, {'title': 'TV Shows - Polimer TV'}, img=img_path + '/rajTamil.PNG')
 
 elif mode == 'thiruttuvcd':
     if ALLOW_HIT_CTR == 'true':
-        net.http_GET(HitCtrUrl_thiruttuvcd)
+        tracker.track_pageview(Page('/Thiruttuvcd_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_MalayalamMovs'}, {'title': 'Malayalam Movies'})    
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_tamilMovs'}, {'title': 'Tamil Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_teluguMovs'}, {'title': 'Telugu Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_hindiMovs'}, {'title': 'Hindi Movies'})
-    #addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_tamilSerials'}, {'title': 'Tamil Serials'})
-    #addon.show_small_popup('MalabarTalkies',SETTINGS_ENABLEADULT, 4000, logo)
 
-    if SETTINGS_ENABLEADULT == 'true':
-        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_masala'}, {'title': 'Thiruttu Masala'})
+
 elif mode == 'interval':
     if ALLOW_HIT_CTR == 'true':
-        net.http_GET(HitCtrUrl_interval)
+        tracker.track_pageview(Page('/Interval_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'interval_featuredMovs'}, {'title': ' - Featured Movies - '})        
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'interval_MalayalamMovs'}, {'title': 'Malayalam Movies'})    
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'interval_TamilMovs'}, {'title': 'Tamil Movies'})    
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'interval_TeluguMovs'}, {'title': 'Telugu Movies'})    
+elif mode == 'KitMovies':
+    if ALLOW_HIT_CTR == 'true':
+        tracker.track_pageview(Page('/KitMovie_Main'), session, visitor)
+        #GBC add a new hitcounter
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'KitMovies_Malayalam'}, {'title': 'Malayalam Movies'})    
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'KitMovies_MalayalamSongs'}, {'title': 'Malayalam Music Videos'})        
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'KitMovies_Tamil'}, {'title': 'Tamil Movies'}) 
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'KitMovies_TamilSongs'}, {'title': 'Tamil Music Videos'})       
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'KitMovies_Hindi'}, {'title': 'Hindi Movies'})   
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'KitMovies_HindiSongs'}, {'title': 'Hindi Music Videos'})   
+
 
 elif mode == 'main':
         #addon.add_directory({'mode': 'olangalMalayalam'}, {'title': 'Malayalam : olangal.com'})
+        addon.add_directory({'mode': 'KitMovies'}, {'title': 'Malayalam, Tamil, Hindi : KitMovies.com'})
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent'}, {'title':'Malayalam : olangal.com'})
         addon.add_directory({'mode': 'abcmalayalam'}, {'title': 'Malayalam : abcmalayalam.com'})
         addon.add_directory({'mode': 'rajTamil'}, {'title': 'Tamil : rajtamil.com'})
         addon.add_directory({'mode': 'thiruttuvcd'}, {'title': 'Malayalam, Tamil, Telugu, Hindi : Thiruttu VCD'})
-        addon.add_directory({'mode': 'interval'}, {'title': 'Malayalam, Tamil, Telugu, Hindi : Interval.in'})
+        addon.add_directory({'mode': 'Worship Songs'}, {'title': '[COLOR yellow]+ Worship Songs+[/COLOR]'})
+        addon.add_directory({'mode': 'Worship Messages'}, {'title': '[COLOR yellow]+ Worship Messages+[/COLOR]'})
+        addon.add_directory({'mode': 'PublicPlaylists'}, {'title': '[COLOR green]User submitted content[/COLOR]'})
+
 #         addon.add_directory({'mode': 'ViewFavorites'}, {'title': 'Favorites'}, img=img_path + '/favorites.PNG')
 #         addon.add_directory({'mode': 'ViewHistory'}, {'title': 'History'})
+        if ALLOW_HIT_CTR == 'true':
+            tracker.track_pageview(Page('/Main'), session, visitor)
+
 if not play:
     addon.end_of_directory()

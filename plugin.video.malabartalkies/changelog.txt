@@ -1,3 +1,8 @@
+[B]Version 0.1.8[/B]
+- Added new source for movies : Kitmovie.com
+- Various BugFixes
+- Changed from amazingcounters to GA (can be disabled in addon settings)	
+
 [B]Version 0.1.7[/B]
 - Added new source for movies : Interval.in
 
