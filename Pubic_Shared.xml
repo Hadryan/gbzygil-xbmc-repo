@@ -1,3 +1,5 @@
-<FOLDER NAME="Folder1">
-<ITEM NAME="Google" URL="www.google.com"/>
-</FOLDER>
+<collection shelf="Worship Songs">
+<movie title="Passion - Jesus, Only Jesus [Lyrics]">
+   <url>https://www.youtube.com/watch?v=r2o4dI3HA0A</url>
+   <img>http://img.youtube.com/vi/r2o4dI3HA0A/1.jpg</img>
+</movie>
