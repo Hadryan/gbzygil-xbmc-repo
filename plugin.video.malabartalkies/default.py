@@ -315,7 +315,7 @@ def getMovList_olangal(olangalurl):
             print " current url = " + olangalurl
 #            link = net.http_GET(olangalurl).content
 #            soup = BeautifulSoup(link, 'html5lib')
-            req = urllib2.Request(url)
+            req = urllib2.Request(olangalurl)
             req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
             response = urllib2.urlopen(req)
             link = response.read()
@@ -343,34 +343,17 @@ def getMovList_olangal(olangalurl):
                 ws3 = m.group(6)
                 int2 = m.group(7)
                 paginationText = "( Currently in Page " + int1 + " of " + int2 + ")\n"
+
             ItemNum=0
-            for eachItem in soup.findAll("div", { "id":"content"}):
-                 eachItem.ul.decompose()
-
-                 imglinks = eachItem.find_all('img')
-                 for imglink in imglinks:
-                      imgfullLink = imglink.get('src').strip()
-                      if imgfullLink.startswith("/"):
-                       imgfullLink = 'http://olangal.org' + imgfullLink
-
-                 links = eachItem.find_all('a')
-                 
-                 for link in links:
-                      ItemNum=ItemNum+1
-                      names = link.contents[0].strip()
-                      fullLink = link.get('href').strip()
-#                      fullLink = olangalurl + movUrl
-                      if not "Read more" in names:
-                        contextMenuItems = []
-
-#                         contextMenuItems.append(('Add to Favorites', 'XBMC.RunPlugin(%s?mode=200&name=%s&url=%s&fanarturl=%s)' % (sys.argv[0], names, fullLink, imgfullLink)))
-#                         addon.add_directory({'mode': 'individualmovie', 'url': fullLink, 'fanarturl': imgfullLink , 'title': names}, {'title': names}, img=imgfullLink, contextmenu_items=contextMenuItems, context_replace=True)
-                        Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + fullLink + ', imgLink=' + imgfullLink.strip()+', MovTitle='+names})
-                        print " : Adding to cache dictionary :"+names+", mode=individualmovie, url=" + fullLink
-
-#                         print ' adding movie =' + names + ' ,url =' + fullLink + ' ,fanart = ' + imgfullLink
-#             addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent', 'currPage': int(currPage) + 24 }, {'title': 'Next Page.. ' + paginationText})
-            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=olangalMovies-Recent, currPage=' + str(int(currPage) + 24) + ',title=Next Page.. ' + paginationText+', Order='+str(ItemNum)})
+            for eachItem in soup.findAll("li", { "class":"border-radius-5 box-shadow"}):
+                 ItemNum=ItemNum+1
+                 imgfullLink = eachItem.find('img')['src']
+                 fullLink = eachItem.find('a')['href']
+                 names = eachItem.find('a')['title'].encode('ascii',errors='ignore')
+                 Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + fullLink + ', imgLink=' + imgfullLink.strip()+', MovTitle='+names})
+                 print " : Adding to cache dictionary :"+names+", mode=individualmovie, url=" + fullLink
+#             addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent', 'currPage': int(currPage) + 1 }, {'title': 'Next Page.. ' + paginationText})
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=olangalMovies-Recent, currPage=' + str(int(currPage) + 1) + ',title=Next Page.. ' + paginationText+', Order='+str(ItemNum)})
             return Dict_movlist
 
 def getMovList_ABCmal(abcmalUrl):
@@ -411,10 +394,8 @@ def getMovList_ABCmal(abcmalUrl):
 def getMovLinksForEachMov(url):
 
     url = addon.queries.get('url', False)
-    if 'olangal.com' in url:
+    if 'olangal.org' in url:
         movTitle = str(addon.queries.get('title', False))
-        (head, tail) = os.path.split(url)
-        url = 'http://olangal.org/' + tail
         fanarturl = str(addon.queries.get('fanarturl', False))
         print ' current movie url : ' + url
         print ' current movie fanarturl : ' + fanarturl
@@ -422,60 +403,62 @@ def getMovLinksForEachMov(url):
 
         link = net.http_GET(url).content
         soup = BeautifulSoup(link)
-        allVidSrcs = soup.findAll('a', target="_blank")
+        sources = []
+        videoclass = soup.find("div", { "class":"video-embed"})
+        
+        try:
+            links = videoclass.find_all('a')
+            for link in links:
+                url = link.get('href')
+                if 'pongomovies' in url:
+                    link = net.http_GET(url).content
+                    soup = BeautifulSoup(link)
+                    for linksSection in soup.findAll("div", { "class":"tabs-catch-all" }):
+                        if 'iframe' in str(linksSection.contents):
+                            vidurl = str(linksSection.find('iframe')['src'])
+                            hosted_media = urlresolver.HostedMediaFile(vidurl)
+                            print ' ' + movTitle + ' source found : ' + vidurl + ', hosted_media : ' + str(hosted_media)
+                            if urlresolver.HostedMediaFile(vidurl).valid_url():
+                                sources.append(hosted_media)
+                            else:
+                                print '    not resolvable by urlresolver!'
+                else:
+                    hosted_media = urlresolver.HostedMediaFile(url)
+                    print ' ' + movTitle + ' source found : ' + url + ', hosted_media : ' + str(hosted_media)
+                    if urlresolver.HostedMediaFile(url).valid_url():
+                        sources.append(hosted_media)
+                    else:
+                        print '    not resolvable by urlresolver!'
+        except:
+            print " : no embedded urls found using method 1"
 
-        currIdx = 0
-        for vidLink in allVidSrcs:
-         currIdx = currIdx + 1
-    #      dlg.update(int((currIdx * 100.0) / len(allVidSrcs)))
-         if 'watchmoviesindia.com' not in str(vidLink) and 'tamizh.ws' not in str(vidLink) and 'malayalam_calendar.php' not in str(vidLink) :
-             mediaLink = ''
-             mediaHost = ''
-             media_id = ''
-             if 'vidto.php' in str(vidLink):
-                  (head, tail) = os.path.split(vidLink['href'])
-                  media_idArr = tail.split('=')
-                  media_id = media_idArr[1]
-                  mediaHost = 'vidto.me'
-                  print ' From vidLink = ' + vidLink['href'] + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost
-                  addon.add_video_item({'host': mediaHost, 'media_id': media_id, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + mediaHost + ' (' + media_id + ')'})
+        try:
+            links = videoclass.find_all('iframe')
+            for link in links:
+                url = link.get('src')
+                hosted_media = urlresolver.HostedMediaFile(url)
+                print ' ' + movTitle + ' source found : ' + url + ', hosted_media : ' + str(hosted_media)
+                if urlresolver.HostedMediaFile(url).valid_url():
+                    sources.append(hosted_media)
+                else:
+                    print '    not resolvable by urlresolver!'
+        except:
+                 print 'Nothing found using method 2!'
 
-#                   Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaLink})
-             elif 'nowvideo.php' in str(vidLink):
-                  (head, tail) = os.path.split(vidLink['href'])
-                  media_idArr = tail.split('=')
-                  media_id = media_idArr[1]
-                  mediaHost = 'nowvideo.com'
-                  print ' From vidLink = ' + vidLink['href'] + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost
-                  addon.add_video_item({'host': mediaHost, 'media_id': media_id, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + mediaHost + ' (' + media_id + ')'})
-#                   Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaLink})
-             elif 'putlocker.php' in str(vidLink):
-                  (head, tail) = os.path.split(vidLink['href'])
-                  media_idArr = tail.split('=')
-                  media_id = media_idArr[1]
-                  mediaHost = 'putlocker'
-                  print ' From vidLink = ' + vidLink['href'] + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost
-                  addon.add_video_item({'host': mediaHost, 'media_id': media_id, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + mediaHost + ' (' + media_id + ')'})
-#                   Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaLink})
-             elif 'youtubelinks.php' in str(vidLink):
-                  (head, tail) = os.path.split(vidLink['href'])
-                  media_idArr = tail.split('=')
-                  media_id = media_idArr[1]
-                  mediaHost = 'youtube.com'
-                  print ' From vidLink = ' + vidLink['href'] + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost
-                  addon.add_video_item({'host': mediaHost, 'media_id': media_id},{'title': movTitle})
-                  #addon.add_video_item({'host': mediaHost, 'media_id': media_id, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + mediaHost + ' (' + media_id + ')'})
-#                   Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaLink})
-             elif 'veoh.php' in str(vidLink):
-                  (head, tail) = os.path.split(vidLink['href'])
-                  media_idArr = tail.split('=')
-                  media_id = media_idArr[1]
-                  mediaHost = 'veoh'
-                  print ' From vidLink = ' + vidLink['href'] + ', adding mediaid=' + media_id + ', mediaHost=' + mediaHost
-                  addon.add_video_item({'host': mediaHost, 'media_id': media_id, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + mediaHost + ' (' + media_id + ')'})
-#                   Dict_movSources.update({movTitle:'host=' + mediaHost + ', media_id=' + media_id + ', mediaLink=' + mediaLink})
-             else:
-                  print ' other source :' + str(vidLink)
+        sources = urlresolver.filter_source_list(sources)
+        for idx, s in enumerate(sources):
+            print "#### Adding from enum after filter : "
+            print 'url = ' + s.get_url()
+            print 'host = ' + s.get_host()
+            print 'media_id = '+ s.get_media_id()
+            if s.get_media_id():
+                if s.get_host():
+                    print "have proper media_id and host"
+                    addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
+            else:
+                vidhost = re.findall('//(.*?)/', s.get_url())[0]
+                #addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_url() + ')'}, img=fanarturl)
+                addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)
 
     elif 'rajtamil.com' in url:
             url = addon.queries.get('url', False)
