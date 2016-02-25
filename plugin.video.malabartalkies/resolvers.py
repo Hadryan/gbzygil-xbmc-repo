@@ -74,7 +74,7 @@ def resolve_url(url, filename=False):
                 except:
                     try:url = url.split('com/v/')[1]
                     except:url = url.split('com/embed/')[1]
-                stream_url = 'plugin://plugin.video.youtube/?action=play_video&videoid=' + url
+                stream_url = 'plugin://plugin.video.youtube/play/?video_id=' + url
             else:
                 import urlresolver
                 print "host " + url
