@@ -14,7 +14,7 @@ if REMOTE_DBG:
             "You must add org.python.pydev.debug.pysrc to your PYTHONPATH.")
         sys.exit(1)
 
-import urlresolver, os, re, sys, urllib2, xbmc, xbmcaddon, xbmcgui, xbmcplugin, xbmcvfs
+import urlresolver, os, re, sys, urllib, urllib2, xbmc, xbmcaddon, xbmcgui, xbmcplugin, xbmcvfs
 from xml.dom.minidom import parse
 import xml.dom.minidom
 from t0mm0.common.addon import Addon
@@ -63,7 +63,17 @@ Public_Shared_XML='https://raw.githubusercontent.com/gbzygil/gbzygil-xbmc-repo/m
 if not xbmcvfs.exists(RootDir + '/thumbs'):
     xbmcvfs.mkdirs(RootDir + '/thumbs')
 
-   
+class NoRedirectHandler(urllib2.HTTPRedirectHandler):
+    def http_error_301(self, req, fp, code, msg, headers):
+        infourl = urllib.addinfourl(fp, headers, req.get_full_url())
+        infourl.status = code
+        infourl.code = code
+        return infourl
+    
+    http_error_302 = http_error_301
+    http_error_307 = http_error_301
+    # just keep adding error codes to cover all the ones you want reported instead of having exceptions raised
+    
 def getMovList_KitMovie(KitMovie_url):
         print "================ checking cache hit : function getMovList_KitMovie was called with : " + KitMovie_url
         Dict_movlist = {}
@@ -473,121 +483,53 @@ def getMovLinksForEachMov(url):
             soup = BeautifulSoup(link)
 #             print soup.prettify('utf-8')
             sources = []
-
-
-            try:
-                for eachItem in soup.findAll("div", { "class":"entry" }):
-#                     print eachItem
-                    links = eachItem.find_all('a')
-                    for link in links:
-                        if link.has_attr('href'):
-                            link = link.get('href')
-                            if 'youtube' in link:
-                                (head, tail) = os.path.split(link)
-                                tail = str(tail).replace('watch?v=', '')
-                                print " : Adding using method1 " + tail
-                                sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=tail))
-
-
-            except:
-                print " : no embedded youtube urls found using method1 "
-
-            try:
-                for eachItem in soup.findAll('p'):
-                    for eachItem1 in eachItem.findAll('a'):
-                        if eachItem1.has_attr('onclick'):
-                            eI = eachItem1['onclick']
-                            splitString = eI.split(",")
-                            eI = splitString[0].replace("window.open('", "")
-                            eI = eI.replace("'", "")
-                            splitString = eI.split("=")
-                            eI = splitString[2]
-                            print eI
-                            print " : Adding using method2 " + eI
-                            sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(eI)))
-
-            except:
-                print " : no embedded youtube urls found using method2 "
-
-            try:
-                re1 = '(window\\.open)'  # Fully Qualified Domain Name 1
-                re2 = '.*?'  # Non-greedy match on filler
-                re3 = '((?:http|https)(?::\\/{2}[\\w]+)(?:[\\/|\\.]?)(?:[^\\s"]*))'  # HTTP URL 1
-
-                rg = re.compile(re1 + re2 + re3, re.IGNORECASE | re.DOTALL)
-                m = rg.search(str(soup))
-                if m:
-                    fqdn1 = m.group(1)
-                    httpurl1 = m.group(2)
-                    # print httpurl1
-                    splitString = httpurl1.split("'")
-                    link = splitString[0]
-                    if 'youtube' in link:
-                        (head, tail) = os.path.split(link)
-                        tail = str(tail).replace('watch?v=', '')
-                        print " : Adding using method3 " + tail
-
-                        sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(tail)))
-            except:
-                print " : no embedded youtube urls found using method3 "
-
-            try:
-                for eachItem in soup.findAll('param', {'name': 'movie'}):
-                    if eachItem.has_attr('value'):
-#                         print eachItem['value']
-#                         print " : Adding using method3 " + eachItem['value']
-#                         sources.append(urlresolver.HostedMediaFile(url=eachItem['value']))
-#                         sources.append(urlresolver.HostedMediaFile(url='http://www.youtube.com/v/Y0iJdORpTPE'))
-                        httpurl1 = eachItem['value']
-                        splitString = httpurl1.split("??")
-                        link = splitString[0]
-                        if 'youtube' in link:
-                            (head, tail) = os.path.split(link)
-                            tail = str(tail).replace('watch?v=', '')
-                            print " : Adding using method3 " + tail
-
-                            sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(tail)))
-
-            except:
-                print " : no embedded youtube urls found using method4 "
-
-            try:
-                for eachItem in soup.findAll("a"):
-                    if eachItem.has_attr('href'):
-                        link=eachItem.get('href')
-                        if 'youtube' in link:
-                            (head, tail) = os.path.split(link)
-                            tail = str(tail).replace('watch?v=', '')
-                            print " : Adding using method5 " + tail
-
-                            sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(tail)))
-
-            except:
-                print " : no embedded youtube urls found using method5 "
-
-            links = soup.find_all('iframe')
-            for link in links:
-                movLink = str(link.get("src"))
-                if "facebook" not in movLink:
-                    print ' ' + movTitle + ' source found : ' + movLink
-                    hosted_media = urlresolver.HostedMediaFile(movLink)
-                    print ' ' + movTitle + ' hosted_media : ' + str(hosted_media)
-                    if "nowvideo" in str(hosted_media):
-                        (head, tail) = os.path.split(movLink)
-        #                 Now lets remove 'embed.php?v=' to extract the mediaID
-                        tail = str(tail).replace('embed.php?v=', '')
-                        print ' ' + movTitle + ' NOWVIDEO source found ,head =' + head + ', tail=' + tail
-                        sources.append(urlresolver.HostedMediaFile(host='nowvideo.sx', media_id=str(tail)))
-
-                    else:
+            videoclass = soup.find("div", { "class":"entry"})
+            links = videoclass.find_all('iframe')
+            for plink in links:
+                movLink = plink.get('src')
+                if 'googleplay' in movLink:
+                    rlink = net.http_GET(movLink).content
+                    flink = net.http_GET(movLink).get_url()
+                    elink = re.findall('<source src="(.*?)"', rlink)[0] + '&stream=1'
+                    opener = urllib2.build_opener(NoRedirectHandler())
+                    opener.addheaders = [('Referer', flink)]
+                    urllib2.install_opener(opener)
+                    res = urllib2.urlopen(elink)
+                    glink = res.info().getheader('location')
+                    hosted_media = urlresolver.HostedMediaFile(glink)
+                    print ' ' + movTitle + ' source found : ' + glink + ', hosted_media : ' + str(hosted_media)
+                    if urlresolver.HostedMediaFile(glink).valid_url():
                         sources.append(hosted_media)
+                    else:
+                        print '    not resolvable by urlresolver!'
+                else:
+                    hosted_media = urlresolver.HostedMediaFile(movLink)
+                    print ' ' + movTitle + ' source found : ' + movLink + ', hosted_media : ' + str(hosted_media)
+                    if urlresolver.HostedMediaFile(movLink).valid_url():
+                        sources.append(hosted_media)
+                    else:
+                        print '    not resolvable by urlresolver!'
             # sources = urlresolver.filter_source_list(sources)
 
             for idx, s in enumerate(sources):
-                # Dict_movSources.update({movTitle + str(idx):'host=' + s.get_host() + ' , media_id=' + s.get_media_id() + ' , title=' + movTitle + ' , img=' + fanarturl.strip()})
-                if s.get_host():
-                    print " : host is " + s.get_host() + ', mediaID=' + s.get_media_id() + ', adding new item'
-                    addon.add_video_item({'host': s.get_host() , 'media_id': s.get_media_id(), 'title': movTitle, 'img':fanarturl, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
+                print "#### Adding from enum after filter : "
+                print 'url = ' + s.get_url()
+                print 'host = ' + s.get_host()
+                print 'media_id = '+ s.get_media_id()
+                if s.get_media_id():
+                    if s.get_host():
+                        print "have proper media_id and host"
+                        addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
+                else:
+                    vidhost = re.findall('//(.*?)/', s.get_url())[0]
+                    #addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_url() + ')'}, img=fanarturl)
+                    addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)
+                    
+#            for idx, s in enumerate(sources):
+#                # Dict_movSources.update({movTitle + str(idx):'host=' + s.get_host() + ' , media_id=' + s.get_media_id() + ' , title=' + movTitle + ' , img=' + fanarturl.strip()})
+#                if s.get_host():
+#                    print " : host is " + s.get_host() + ', mediaID=' + s.get_media_id() + ', adding new item'
+#                    addon.add_video_item({'host': s.get_host() , 'media_id': s.get_media_id(), 'title': movTitle, 'img':fanarturl, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
 
     elif 'thiruttuvcd.me' in url:
             url = addon.queries.get('url', False)
