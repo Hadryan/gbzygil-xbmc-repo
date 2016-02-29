@@ -84,6 +84,7 @@ def getMovList_KitMovie(KitMovie_url):
         link=response.read()
         response.close()
         soup = BeautifulSoup(link)
+        #print str(soup)
         ItemNum=0
 
         for row in soup.findAll("link", { "rel":"next" }):
@@ -99,9 +100,15 @@ def getMovList_KitMovie(KitMovie_url):
                 paginationText = "( "+ str(int(int1)) +")\n"
             Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(int(int1)-1) + ',title=Next Page.. ' + paginationText})
 
-        for row in soup.findAll("div", { "class":"col-sm-4 col-xs-6 item" }):
+        for row in soup.findAll("div", { "class":"col-sm-4 col-xs-6 item responsive-height" }):
             ItemNum=ItemNum+1
             img=row.find('img')['src']
+            if '//' in str(img[ 0 : 0 + 2]):
+        	    img=img.replace("//", "")
+            print "GBC found imgUrl = " + str(img)
+
+
+
             currMovObj=row.find('h3')
             movTitle=currMovObj.text
             
@@ -359,7 +366,8 @@ def getMovList_olangal(olangalurl):
                  ItemNum=ItemNum+1
                  imgfullLink = eachItem.find('img')['src']
                  fullLink = eachItem.find('a')['href']
-                 names = eachItem.find('a')['title'].encode('ascii',errors='ignore')
+                 names = eachItem.find('a')['title']
+                 #.encode('ascii',errors='ignore')
                  Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + fullLink + ', imgLink=' + imgfullLink.strip()+', MovTitle='+names})
                  print " : Adding to cache dictionary :"+names+", mode=individualmovie, url=" + fullLink
 #             addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent', 'currPage': int(currPage) + 1 }, {'title': 'Next Page.. ' + paginationText})
