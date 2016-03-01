@@ -222,11 +222,22 @@ def getMovList_rajtamil(rajTamilurl):
                     # movTitle = str(link['title'])
                     movTitle = link['title']
                     movTitle = movTitle.replace('-', '')
+                    movTitle = movTitle.replace('|', '')
                     movTitle = movTitle.replace('Watch', '')
                     movTitle = movTitle.replace('DVD', '')
                     movTitle = movTitle.replace('Movie', '')
                     movTitle = movTitle.replace('Online', '')
                     movTitle = movTitle.replace('Tamil Dubbed', 'Tamil Dubbed*')
+                    movTitle = movTitle.replace('Super ', '')
+                    movTitle = movTitle.replace('Hilarious ', '')
+                    movTitle = movTitle.replace('Ultimate ', '')
+                    movTitle = movTitle.replace('Best ', '')
+                    movTitle = movTitle.replace('comedy ', '')
+                    movTitle = movTitle.replace('Comedy', '')
+                    movTitle = movTitle.replace('Video', '')
+                    movTitle = movTitle.replace('Scenes', '')
+                    movTitle = movTitle.replace('Scene', '')
+                    movTitle = movTitle.replace('online', '')
                     movTitle = movTitle.strip()
                     # movPage = str(link['href'])
                     movPage = link['href']
@@ -256,6 +267,8 @@ def getMovList_rajtamil(rajTamilurl):
             subUrl = 'rajtamilTVshowsZeeTamil'
         elif 'polimer-tv-show-2' in rajTamilurl:
             subUrl = 'rajtamilTVshowsPolimer'
+        elif 'comedy' in rajTamilurl:
+            subUrl = 'rajtamilcomedy'
         elif 'tamil-dubbed' in rajTamilurl:
             subUrl = 'rajtamildubbed'
         else:
@@ -368,8 +381,8 @@ def getMovList_olangal(olangalurl):
                  ItemNum=ItemNum+1
                  imgfullLink = eachItem.find('img')['src']
                  fullLink = eachItem.find('a')['href']
-                 names = eachItem.find('a')['title']
-                 #.encode('ascii',errors='ignore')
+                 names = eachItem.find('a')['title'].encode('ascii',errors='ignore')
+                 #.encode('ascii',errors='ignore') Without this fails on olangal page 4 "Love 24x7" with utf char in title
                  Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + fullLink + ', imgLink=' + imgfullLink.strip()+', MovTitle='+names})
                  print " : Adding to cache dictionary :"+names+", mode=individualmovie, url=" + fullLink
 #             addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent', 'currPage': int(currPage) + 1 }, {'title': 'Next Page.. ' + paginationText})
@@ -414,7 +427,6 @@ def getMovList_ABCmal(abcmalUrl):
 def getMovLinksForEachMov(url):
 
     url = addon.queries.get('url', False)
-
     if 'olangal.org' in url:
         movTitle = str(addon.queries.get('title', False))
         fanarturl = str(addon.queries.get('fanarturl', False))
@@ -489,10 +501,10 @@ def getMovLinksForEachMov(url):
             print ' current movie fanarturl : ' + fanarturl
             print ' current movie title : ' + movTitle
             link = net.http_GET(url).content
-#            link = link.encode('utf8')
+#             print encode('utf-8')
 
             soup = BeautifulSoup(link)
-#            print soup.prettify('utf-8')
+#             print soup.prettify('utf-8')
             sources = []
             try:
                 for eachItem in soup.findAll("div", { "class":"entry" }):
@@ -612,7 +624,7 @@ def getMovLinksForEachMov(url):
                             print '    not resolvable by urlresolver!'
 
             except:
-                print " : no embedded urls found using iframe method"
+                print " : no embedded urls found using iframe method 1"
 
             try:
                 videoclass = soup.find("div", { "class":"entry"})
@@ -659,6 +671,12 @@ def getMovLinksForEachMov(url):
                     #addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_url() + ')'}, img=fanarturl)
                     addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)
                     
+#            for idx, s in enumerate(sources):
+#                # Dict_movSources.update({movTitle + str(idx):'host=' + s.get_host() + ' , media_id=' + s.get_media_id() + ' , title=' + movTitle + ' , img=' + fanarturl.strip()})
+#                if s.get_host():
+#                    print " : host is " + s.get_host() + ', mediaID=' + s.get_media_id() + ', adding new item'
+#                    addon.add_video_item({'host': s.get_host() , 'media_id': s.get_media_id(), 'title': movTitle, 'img':fanarturl, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
+
     elif 'thiruttuvcd.me' in url:
             url = addon.queries.get('url', False)
             subUrl = addon.queries.get('subUrl', False)
@@ -818,6 +836,8 @@ def getMovLinksForEachMov(url):
             except:
                 print "Nothing found using method 2"
 
+
+
     elif 'abcmalayalam.com' in url:
             url = addon.queries.get('url', False)
             movTitle = str(addon.queries.get('title', False))
@@ -885,7 +905,6 @@ def getMovLinksForEachMov(url):
                     vidhost = re.findall('//(.*?)/', s.get_url())[0]
 					#addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_url() + ')'}, img=fanarturl)
                     addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)
-
     elif 'kitmovie.com' in url:
             url = addon.queries.get('url', False)
             movTitle = str(addon.queries.get('title', False))
@@ -1199,7 +1218,9 @@ elif mode == 'GetMovies':
                     print " : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
             except:
                 print "No Pagination found"
-
+    
+        
+           
     elif ('KitMovies' in subUrl):
         currPage = addon.queries.get('currPage', False)
         if not currPage:
@@ -1358,6 +1379,8 @@ elif mode == 'GetMovies':
             except:
                 print "No Pagination found"
 
+#                 Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(int(CurrPage.text) + 1) + ',title=Next Page.. ' + paginationText})
+    
     elif 'interval' in subUrl:
             currPage = addon.queries.get('currPage', False)
             if not currPage:
@@ -1421,6 +1444,12 @@ elif mode == 'GetMovies':
                     #print "Current Pagination value to add to ListView = "+value
                     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'interval_NextPage', 'url': PagiSubUrl_Str }, {'title': PaginatorTitle_Str})
 
+                    #use below :
+                    #MODE = GetMovies
+                    #TITLE = False
+                    #URL = False
+                    #SUBURL = interval_MalayalamMovs
+                    #CURRPAGE = False
     elif 'rajtamil' in subUrl:
             currPage = addon.queries.get('currPage', False)
             if not currPage:
@@ -1445,11 +1474,16 @@ elif mode == 'GetMovies':
                 rajTamilurl = 'http://www.rajtamil.com/category/tamil-dubbed/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
                     tracker.track_pageview(Page('/Rajtamil/TamilDubbed'), session, visitor)
+            elif 'rajtamilcomedy' in subUrl:
+                rajTamilurl = 'http://www.rajtamil.com/category/comedy/page/' + str(currPage) + '/'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/Rajtamil/TamilComedy'), session, visitor)
             else:
                 rajTamilurl = 'http://www.rajtamil.com/category/movies/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
                     tracker.track_pageview(Page('/Rajtamil'), session, visitor)
 
+#             rajTamilurl = 'http://www.rajtamil.com/category/polimer-tv-show-2/'
             print " subUrl= " + subUrl + " , opening url :" + rajTamilurl
             Dict_res = cache.cacheFunction(getMovList_rajtamil, rajTamilurl)
 
@@ -1524,6 +1558,7 @@ elif mode == 'rajTamil':
         tracker.track_pageview(Page('/Rajtamil_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilRecent'}, {'title': 'Recent Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamildubbed'}, {'title': 'Dubbed Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilcomedy'}, {'title': 'Comedy'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsVijayTV'}, {'title': 'TV Shows - Vijay TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsSunTV'}, {'title': 'TV Shows - Sun TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsZeeTamil'}, {'title': 'TV Shows - Zee Tamil'})
