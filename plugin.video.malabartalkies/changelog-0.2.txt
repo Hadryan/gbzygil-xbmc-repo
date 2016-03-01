@@ -1,3 +1,6 @@
+[B]Version 0.2[/B]
+- Fixed olangal
+
 [B]Version 0.1.9[/B]
 - Fixed abcmalayalam and thiruttuvcd
 - rollback Adult content code.
