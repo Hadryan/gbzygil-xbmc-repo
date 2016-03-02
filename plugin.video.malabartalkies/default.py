@@ -222,11 +222,22 @@ def getMovList_rajtamil(rajTamilurl):
                     # movTitle = str(link['title'])
                     movTitle = link['title']
                     movTitle = movTitle.replace('-', '')
+                    movTitle = movTitle.replace('|', '')
                     movTitle = movTitle.replace('Watch', '')
                     movTitle = movTitle.replace('DVD', '')
                     movTitle = movTitle.replace('Movie', '')
                     movTitle = movTitle.replace('Online', '')
                     movTitle = movTitle.replace('Tamil Dubbed', 'Tamil Dubbed*')
+                    movTitle = movTitle.replace('Super ', '')
+                    movTitle = movTitle.replace('Hilarious ', '')
+                    movTitle = movTitle.replace('Ultimate ', '')
+                    movTitle = movTitle.replace('Best ', '')
+                    movTitle = movTitle.replace('comedy ', '')
+                    movTitle = movTitle.replace('Comedy', '')
+                    movTitle = movTitle.replace('Video', '')
+                    movTitle = movTitle.replace('Scenes', '')
+                    movTitle = movTitle.replace('Scene', '')
+                    movTitle = movTitle.replace('online', '')
                     movTitle = movTitle.strip()
                     # movPage = str(link['href'])
                     movPage = link['href']
@@ -256,6 +267,10 @@ def getMovList_rajtamil(rajTamilurl):
             subUrl = 'rajtamilTVshowsZeeTamil'
         elif 'polimer-tv-show-2' in rajTamilurl:
             subUrl = 'rajtamilTVshowsPolimer'
+        elif 'comedy' in rajTamilurl:
+            subUrl = 'rajtamilcomedy'
+        elif 'tamil-dubbed' in rajTamilurl:
+            subUrl = 'rajtamildubbed'
         else:
             subUrl = 'rajtamilRecent'
 
@@ -366,8 +381,8 @@ def getMovList_olangal(olangalurl):
                  ItemNum=ItemNum+1
                  imgfullLink = eachItem.find('img')['src']
                  fullLink = eachItem.find('a')['href']
-                 names = eachItem.find('a')['title']
-                 #.encode('ascii',errors='ignore')
+                 names = eachItem.find('a')['title'].encode('ascii',errors='ignore')
+                 #.encode('ascii',errors='ignore') Without this fails on olangal page 4 "Love 24x7" with utf char in title
                  Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + fullLink + ', imgLink=' + imgfullLink.strip()+', MovTitle='+names})
                  print " : Adding to cache dictionary :"+names+", mode=individualmovie, url=" + fullLink
 #             addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent', 'currPage': int(currPage) + 1 }, {'title': 'Next Page.. ' + paginationText})
@@ -491,33 +506,156 @@ def getMovLinksForEachMov(url):
             soup = BeautifulSoup(link)
 #             print soup.prettify('utf-8')
             sources = []
-            videoclass = soup.find("div", { "class":"entry"})
-            links = videoclass.find_all('iframe')
-            for plink in links:
-                movLink = plink.get('src')
-                if 'googleplay' in movLink:
-                    rlink = net.http_GET(movLink).content
-                    flink = net.http_GET(movLink).get_url()
-                    elink = re.findall('<source src="(.*?)"', rlink)[0] + '&stream=1'
-                    opener = urllib2.build_opener(NoRedirectHandler())
-                    opener.addheaders = [('Referer', flink)]
-                    urllib2.install_opener(opener)
-                    res = urllib2.urlopen(elink)
-                    glink = res.info().getheader('location')
-                    hosted_media = urlresolver.HostedMediaFile(glink)
-                    print ' ' + movTitle + ' source found : ' + glink + ', hosted_media : ' + str(hosted_media)
-                    if urlresolver.HostedMediaFile(glink).valid_url():
-                        sources.append(hosted_media)
+            try:
+                for eachItem in soup.findAll("div", { "class":"entry" }):
+#                     print eachItem
+                    links = eachItem.find_all('a')
+                    for link in links:
+                        if link.has_attr('href'):
+                            link = link.get('href')
+                            if 'youtube' in link:
+                                (head, tail) = os.path.split(link)
+                                tail = str(tail).replace('watch?v=', '')
+                                print " : Adding using method1 " + tail
+                                sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=tail))
+
+            except:
+                print " : no embedded youtube urls found using method1 "
+
+            try:
+                for eachItem in soup.findAll('p'):
+                    for eachItem1 in eachItem.findAll('a'):
+                        if eachItem1.has_attr('onclick'):
+                            eI = eachItem1['onclick']
+                            splitString = eI.split(",")
+                            eI = splitString[0].replace("window.open('", "")
+                            eI = eI.replace("'", "")
+                            splitString = eI.split("=")
+                            eI = splitString[2]
+                            print eI
+                            print " : Adding using method2 " + eI
+                            sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(eI)))
+
+            except:
+                print " : no embedded youtube urls found using method2 "
+
+            try:
+                re1 = '(window\\.open)'  # Fully Qualified Domain Name 1
+                re2 = '.*?'  # Non-greedy match on filler
+                re3 = '((?:http|https)(?::\\/{2}[\\w]+)(?:[\\/|\\.]?)(?:[^\\s"]*))'  # HTTP URL 1
+
+                rg = re.compile(re1 + re2 + re3, re.IGNORECASE | re.DOTALL)
+                m = rg.search(str(soup))
+                if m:
+                    fqdn1 = m.group(1)
+                    httpurl1 = m.group(2)
+                    # print httpurl1
+                    splitString = httpurl1.split("'")
+                    link = splitString[0]
+                    if 'youtube' in link:
+                        (head, tail) = os.path.split(link)
+                        tail = str(tail).replace('watch?v=', '')
+                        print " : Adding using method3 " + tail
+
+                        sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(tail)))
+            except:
+                print " : no embedded youtube urls found using method3 "
+
+            try:
+                for eachItem in soup.findAll('param', {'name': 'movie'}):
+                    if eachItem.has_attr('value'):
+#                         print eachItem['value']
+#                         print " : Adding using method3 " + eachItem['value']
+#                         sources.append(urlresolver.HostedMediaFile(url=eachItem['value']))
+#                         sources.append(urlresolver.HostedMediaFile(url='http://www.youtube.com/v/Y0iJdORpTPE'))
+                        httpurl1 = eachItem['value']
+                        splitString = httpurl1.split("??")
+                        link = splitString[0]
+                        if 'youtube' in link:
+                            (head, tail) = os.path.split(link)
+                            tail = str(tail).replace('watch?v=', '')
+                            print " : Adding using method3 " + tail
+
+                            sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(tail)))
+
+            except:
+                print " : no embedded youtube urls found using method4 "
+
+            try:
+                for eachItem in soup.findAll("a"):
+                    if eachItem.has_attr('href'):
+                        link=eachItem.get('href')
+                        if 'youtube' in link:
+                            (head, tail) = os.path.split(link)
+                            tail = str(tail).replace('watch?v=', '')
+                            print " : Adding using method5 " + tail
+
+                            sources.append(urlresolver.HostedMediaFile(host='youtube.com', media_id=str(tail)))
+
+            except:
+                print " : no embedded youtube urls found using method5 "
+                
+            try:
+                videoclass = soup.find("div", { "class":"entry"})
+                links = videoclass.find_all('iframe')
+                for plink in links:
+                    movLink = plink.get('src')
+                    if 'googleplay' in movLink:
+                        rlink = net.http_GET(movLink).content
+                        flink = net.http_GET(movLink).get_url()
+                        elink = re.findall('<source src="(.*?)"', rlink)[0] + '&stream=1'
+                        opener = urllib2.build_opener(NoRedirectHandler())
+                        opener.addheaders = [('Referer', flink)]
+                        urllib2.install_opener(opener)
+                        res = urllib2.urlopen(elink)
+                        glink = res.info().getheader('location')
+                        hosted_media = urlresolver.HostedMediaFile(glink)
+                        print ' ' + movTitle + ' source found : ' + glink + ', hosted_media : ' + str(hosted_media)
+                        if urlresolver.HostedMediaFile(glink).valid_url():
+                            sources.append(hosted_media)
+                        else:
+                            print '    not resolvable by urlresolver!'
                     else:
-                        print '    not resolvable by urlresolver!'
-                else:
-                    hosted_media = urlresolver.HostedMediaFile(movLink)
-                    print ' ' + movTitle + ' source found : ' + movLink + ', hosted_media : ' + str(hosted_media)
-                    if urlresolver.HostedMediaFile(movLink).valid_url():
-                        sources.append(hosted_media)
+                        hosted_media = urlresolver.HostedMediaFile(movLink)
+                        print ' ' + movTitle + ' source found : ' + movLink + ', hosted_media : ' + str(hosted_media)
+                        if urlresolver.HostedMediaFile(movLink).valid_url():
+                            sources.append(hosted_media)
+                        else:
+                            print '    not resolvable by urlresolver!'
+
+            except:
+                print " : no embedded urls found using iframe method 1"
+
+            try:
+                videoclass = soup.find("div", { "class":"entry"})
+                links = videoclass.find_all('a')
+                for plink in links:
+                    movLink = plink.get('href')
+                    if 'googleplay' in movLink:
+                        rlink = net.http_GET(movLink).content
+                        flink = net.http_GET(movLink).get_url()
+                        elink = re.findall('<source src="(.*?)"', rlink)[0] + '&stream=1'
+                        opener = urllib2.build_opener(NoRedirectHandler())
+                        opener.addheaders = [('Referer', flink)]
+                        urllib2.install_opener(opener)
+                        res = urllib2.urlopen(elink)
+                        glink = res.info().getheader('location')
+                        hosted_media = urlresolver.HostedMediaFile(glink)
+                        print ' ' + movTitle + ' source found : ' + glink + ', hosted_media : ' + str(hosted_media)
+                        if urlresolver.HostedMediaFile(glink).valid_url():
+                            sources.append(hosted_media)
+                        else:
+                            print '    not resolvable by urlresolver!'
                     else:
-                        print '    not resolvable by urlresolver!'
-            # sources = urlresolver.filter_source_list(sources)
+                        hosted_media = urlresolver.HostedMediaFile(movLink)
+                        print ' ' + movTitle + ' source found : ' + movLink + ', hosted_media : ' + str(hosted_media)
+                        if urlresolver.HostedMediaFile(movLink).valid_url():
+                            sources.append(hosted_media)
+                        else:
+                            print '    not resolvable by urlresolver!'
+
+            except:
+                print " : no embedded urls found using a method"
 
             for idx, s in enumerate(sources):
                 print "#### Adding from enum after filter : "
@@ -1332,6 +1470,14 @@ elif mode == 'GetMovies':
                 rajTamilurl = 'http://www.rajtamil.com/category/polimer-tv-show-2/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
                     tracker.track_pageview(Page('/Rajtamil/TVshowsPolimerTV'), session, visitor)
+            elif 'rajtamildubbed' in subUrl:
+                rajTamilurl = 'http://www.rajtamil.com/category/tamil-dubbed/page/' + str(currPage) + '/'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/Rajtamil/TamilDubbed'), session, visitor)
+            elif 'rajtamilcomedy' in subUrl:
+                rajTamilurl = 'http://www.rajtamil.com/category/comedy/page/' + str(currPage) + '/'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/Rajtamil/TamilComedy'), session, visitor)
             else:
                 rajTamilurl = 'http://www.rajtamil.com/category/movies/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
@@ -1358,6 +1504,7 @@ elif mode == 'GetMovies':
                     SplitValues = value.split(",")
                     try:
                         for eachSplitVal in SplitValues:
+                            eachSplitVal = eachSplitVal.encode('utf8')
                             if 'mode' in eachSplitVal:
                                 mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
                             elif 'url' in eachSplitVal:
@@ -1379,6 +1526,7 @@ elif mode == 'GetMovies':
                 if PaginatorVal:
                     SplitValues = PaginatorVal.split(",")
                     for eachSplitVal in SplitValues:
+                        eachSplitVal = eachSplitVal.encode('utf8')
                         if 'mode' in eachSplitVal:
                             mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
                         elif 'currPage' in eachSplitVal:
@@ -1409,6 +1557,8 @@ elif mode == 'rajTamil':
     if ALLOW_HIT_CTR == 'true':
         tracker.track_pageview(Page('/Rajtamil_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilRecent'}, {'title': 'Recent Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamildubbed'}, {'title': 'Dubbed Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilcomedy'}, {'title': 'Comedy'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsVijayTV'}, {'title': 'TV Shows - Vijay TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsSunTV'}, {'title': 'TV Shows - Sun TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsZeeTamil'}, {'title': 'TV Shows - Zee Tamil'})
