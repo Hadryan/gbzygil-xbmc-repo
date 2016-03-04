@@ -104,7 +104,7 @@ def getMovList_KitMovie(KitMovie_url):
             ItemNum=ItemNum+1
             img=row.find('img')['src']
             if '//' in str(img[ 0 : 0 + 2]):
-        	    img=img.replace("//", "")
+        	    img=img.replace("//", "http://")
             print "GBC found imgUrl = " + str(img)
 
 
@@ -227,11 +227,12 @@ def getMovList_rajtamil(rajTamilurl):
                     movTitle = movTitle.replace('DVD', '')
                     movTitle = movTitle.replace('Movie', '')
                     movTitle = movTitle.replace('Online', '')
-                    movTitle = movTitle.replace('Tamil Dubbed', 'Tamil Dubbed*')
+                    movTitle = movTitle.replace('Tamil Dubbed', '')
                     movTitle = movTitle.replace('Super ', '')
                     movTitle = movTitle.replace('Hilarious ', '')
                     movTitle = movTitle.replace('Ultimate ', '')
                     movTitle = movTitle.replace('Best ', '')
+                    movTitle = movTitle.replace('Classy ', '')
                     movTitle = movTitle.replace('comedy ', '')
                     movTitle = movTitle.replace('Comedy', '')
                     movTitle = movTitle.replace('Video', '')
@@ -624,7 +625,32 @@ def getMovLinksForEachMov(url):
                             print '    not resolvable by urlresolver!'
 
             except:
-                print " : no embedded urls found using iframe method 1"
+                print " : no embedded urls found using iframe method"
+
+            try:
+                videoclass = soup.find("div", { "class":"entry"})
+                links = videoclass.find_all('p')
+                plink = str(links)
+                rlink = re.findall('(?:Source|SOURCE) 1.*\n.*<iframe.*src="(.*?)"', plink)[0]
+                if rlink:
+                    hosted_media = urlresolver.HostedMediaFile(rlink)
+                    print ' ' + movTitle + ' source found : ' + rlink + ', hosted_media : ' + str(hosted_media)
+                    if urlresolver.HostedMediaFile(rlink).valid_url():
+                        sources.append(hosted_media)
+                    else:
+                        print '    not resolvable by urlresolver!'
+
+                rlink = re.findall('(?:Source|SOURCE) 2.*\n.*<iframe.*src="(.*?)"', plink)[0]
+                if rlink:
+                    hosted_media = urlresolver.HostedMediaFile(rlink)
+                    print ' ' + movTitle + ' source found : ' + rlink + ', hosted_media : ' + str(hosted_media)
+                    if urlresolver.HostedMediaFile(rlink).valid_url():
+                        sources.append(hosted_media)
+                    else:
+                        print '    not resolvable by urlresolver!'
+
+            except:
+                print " : no embedded urls found using p method"
 
             try:
                 videoclass = soup.find("div", { "class":"entry"})
@@ -913,44 +939,42 @@ def getMovLinksForEachMov(url):
             print ' current movie fanarturl : ' + fanarturl
             print ' current movie title : ' + movTitle
             
+            sources = []
             link = net.http_GET(url).content
             soup = BeautifulSoup(link,'html5lib')
-            sources = []
-            
-            for row in soup.findAll("div", { "class":"videoWrapper player" }):
-                for currMovObj in row.findAll("iframe"):
-                    if currMovObj.has_attr('src'):
-                        vidurl=currMovObj.get('src')
-                        #vidurl="http://www.youtube.com/5JTqw9sLjTs"
-                        print "lets see if ["+vidurl+"] can be resolved"
-                        if urlresolver.HostedMediaFile(vidurl).valid_url():
-                            print 'resolvable! using isvalid_url'
-                        hmf = urlresolver.HostedMediaFile(vidurl)
-                        if hmf:
-                            print '--------------- yay! we can resolve this one'
-                        else:
-                            print '--------------- sorry no resolvers available to handle this one.'
-                        if 'embed' in vidurl:
-                            print "********************** THIS IS A LINK WITH EMBED : " + vidurl 
-                            
-
-                        hosted_media = urlresolver.HostedMediaFile(vidurl)
-                        #print ' ' + movTitle + ' source found : ' + vidurl + ', hosted_media : ' + str(hosted_media)
-                        if urlresolver.HostedMediaFile(vidurl).valid_url():
-                            sources.append(hosted_media)
-                        else:
-                            print '    not resolvable by urlresolver!'
-
-                        #print "Primary url = " + currMovObj.get('src')
-            for row in soup.findAll("a", { "class":"btn btn-success btn-lg btn-block  " }):
-                print "Secondary url=" + row.get('href')
-                vidurl=row.get('href')
+            linksDiv = soup.find("ul", { "class":"pagination post-tape" })
+            try:
+                for div in linksDiv:
+                    links = div.findAll('a')
+                    for a in links:
+                        slink = net.http_GET(a['href']).content
+                        ssoup = BeautifulSoup(slink,'html5lib')
+                        try:
+                            linksSection = ssoup.find("div", { "class":"player player-small embed-responsive embed-responsive-16by9" })
+                            vidurl = str(linksSection.find('iframe')['src'])
+                            hosted_media = urlresolver.HostedMediaFile(vidurl)
+                            print ' ' + movTitle + ' source found : ' + vidurl + ', hosted_media : ' + str(hosted_media)
+                            if urlresolver.HostedMediaFile(vidurl).valid_url():
+                                sources.append(hosted_media)
+                            else:
+                                print '    not resolvable by urlresolver!'            
+                        except:
+                            print 'Nothing found on tape page!'
+            except:
+                print 'Nothing found using tape method!'
+                
+            try:
+                linksSection = soup.find("div", { "class":"player player-small embed-responsive embed-responsive-16by9" })
+                vidurl = str(linksSection.find('iframe')['src'])
                 hosted_media = urlresolver.HostedMediaFile(vidurl)
                 print ' ' + movTitle + ' source found : ' + vidurl + ', hosted_media : ' + str(hosted_media)
                 if urlresolver.HostedMediaFile(vidurl).valid_url():
                     sources.append(hosted_media)
                 else:
                     print '    not resolvable by urlresolver!'
+            except:
+                print 'Nothing found using iframe method!'            
+                    
             sources = urlresolver.filter_source_list(sources)
             for idx, s in enumerate(sources):
                 print "#### Adding from enum after filter : "
@@ -963,7 +987,8 @@ def getMovLinksForEachMov(url):
                         addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_url() + ')'}, img=fanarturl)
                 else:
                     #addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_url() + ')'}, img=fanarturl)
-                    addon.add_video_item({'url': s.get_url()},{'title': movTitle},img=fanarturl,fanart=fanarturl)
+                    vidhost = re.findall('//(.*?)/', s.get_url())[0]
+                    addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)
 
     elif 'interval.in' in url:
             url = addon.queries.get('url', False)
@@ -1556,9 +1581,9 @@ elif mode == 'abcmalayalam':
 elif mode == 'rajTamil':
     if ALLOW_HIT_CTR == 'true':
         tracker.track_pageview(Page('/Rajtamil_Main'), session, visitor)
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilRecent'}, {'title': 'Recent Movies'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamildubbed'}, {'title': 'Dubbed Movies'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilcomedy'}, {'title': 'Comedy'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilRecent'}, {'title': 'Tamil Recent Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamildubbed'}, {'title': 'Tamil Dubbed Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilcomedy'}, {'title': 'Tamil Movies Comedy Scenes'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsVijayTV'}, {'title': 'TV Shows - Vijay TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsSunTV'}, {'title': 'TV Shows - Sun TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsZeeTamil'}, {'title': 'TV Shows - Zee Tamil'})
