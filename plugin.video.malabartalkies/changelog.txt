@@ -1,3 +1,7 @@
+[B]Version 0.2.1 - 8 Mar 2016[/B]
+- Rajtamil, Olangal website changes
+- Fixed Kitmovie
+
 [B]Version 0.2[/B]
 - Fixed olangal
 
