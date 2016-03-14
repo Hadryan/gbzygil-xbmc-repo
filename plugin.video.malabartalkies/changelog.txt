@@ -1,3 +1,7 @@
+[B]Version 0.2.2 - 14 Mar 2016[/B]
+- Added new source for movies : Mersalaayitten.com
+- Removed Kitmovie
+
 [B]Version 0.2.1 - 8 Mar 2016[/B]
 - Rajtamil, Olangal website changes
 - Fixed Kitmovie
