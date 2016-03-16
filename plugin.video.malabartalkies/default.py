@@ -333,6 +333,56 @@ def getMovList_mersal(mersalurl):
 
         return Dict_movlist
 
+def getMovList_tamilgun(tamilgunurl):
+        #xbmc.log(msg='================ checking cache hit : function getMovList_mersal was called with : ' + mersalurl, level=xbmc.LOGNOTICE)
+
+        Dict_movlist = {}
+
+        req = urllib2.Request(tamilgunurl)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
+        response = urllib2.urlopen(req)
+        link=response.read()
+        response.close()
+        soup = BeautifulSoup(link,'html.parser')
+        lsoup = soup.find(class_='col-sm-8')
+        ItemNum = 0
+        Items = lsoup.findAll(class_='col-sm-4 col-xs-6 item')
+        #xbmc.log(msg='========== Items: ' + str(Items), level=xbmc.LOGNOTICE)
+        for eachItem in Items:
+            ItemNum = ItemNum+1
+            movTitle = eachItem.h3.a.string
+            movPage = eachItem.find('a')['href']
+            imgSrc = eachItem.find('img')['src']
+            Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc+', MovTitle='+movTitle})
+
+        Paginator = lsoup.find("ul", { "class":"pagination"})
+        currPage = Paginator.find("li", { "class":"active"})
+        CurrentPage = int(currPage.a.string)
+        lPage = Paginator.find("li", { "class":"last"})
+        laPage = lPage.find('a')['href']
+        lastPage = re.findall('page/(\\d*)', laPage)[0]
+        
+        if (CurrentPage < lastPage):
+            paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
+        else:
+            paginationText = ""
+
+        if 'new-movies' in tamilgunurl:
+            subUrl = 'tamilgunnew'
+        elif 'dubbed-movies' in tamilgunurl:
+            subUrl = 'tamilgundubbed'
+        elif 'hd-movies' in tamilgunurl:
+            subUrl = 'tamilgunhd'
+        elif 'hd-comedys' in tamilgunurl:
+            subUrl = 'tamilguncomedy'
+        elif 'trailers' in tamilgunurl:
+            subUrl = 'tamilguntrailer'
+
+        if paginationText:
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+
+        return Dict_movlist
+
 def getMovList_interval(interval_url):
         Dict_movlist = {}
         ItemNum=0
@@ -567,9 +617,6 @@ def getMovLinksForEachMov(url):
             url = addon.queries.get('url', False)
             movTitle = str(addon.queries.get('title', False))
             fanarturl = str(addon.queries.get('img', False))
-            #print ' current movie url : ' + url
-            #print ' current movie fanarturl : ' + fanarturl
-            #print ' current movie title : ' + movTitle
             movid = re.findall('video/([\\d]*)',url)[0]
             xmlurl = 'http://mersalaayitten.com/media/nuevo/econfig.php?key=' + movid
             req = urllib2.Request(xmlurl)
@@ -790,12 +837,98 @@ def getMovLinksForEachMov(url):
                     movTitle = movTitle.decode('utf-8').encode('ascii','ignore')
                     #addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_url() + ')'}, img=fanarturl)
                     addon.add_video_item({'url': s.get_url()},{'title': movTitle + ': ' + vidhost},img=fanarturl,fanart=fanarturl)
-                    
-#            for idx, s in enumerate(sources):
-#                # Dict_movSources.update({movTitle + str(idx):'host=' + s.get_host() + ' , media_id=' + s.get_media_id() + ' , title=' + movTitle + ' , img=' + fanarturl.strip()})
-#                if s.get_host():
-#                    #print " : host is " + s.get_host() + ', mediaID=' + s.get_media_id() + ', adding new item'
-#                    addon.add_video_item({'host': s.get_host() , 'media_id': s.get_media_id(), 'title': movTitle, 'img':fanarturl, 'AddtoHist':True}, {'title': movTitle + "," + s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
+
+    elif 'tamilgun.com' in url:
+            url = addon.queries.get('url', False)
+            movTitle = str(addon.queries.get('title', False))
+            fanarturl = str(addon.queries.get('fanarturl', False))
+            link = net.http_GET(url).content
+            soup = BeautifulSoup(link)
+            sources = []
+            
+            try:
+                videoclass = soup.find("div", { "class":"videoWrapper player"})
+                links = videoclass.find_all('iframe')
+                for plink in links:
+                    movLink = plink.get('src')
+                    if 'googleplay' in movLink:
+                        rlink = net.http_GET(movLink).content
+                        flink = net.http_GET(movLink).get_url()
+                        elink = re.findall('<source src="(.*?)"', rlink)[0] + '&stream=1'
+                        opener = urllib2.build_opener(NoRedirectHandler())
+                        opener.addheaders = [('Referer', flink)]
+                        urllib2.install_opener(opener)
+                        res = urllib2.urlopen(elink)
+                        glink = res.info().getheader('location')
+                        hosted_media = urlresolver.HostedMediaFile(glink)
+                        if urlresolver.HostedMediaFile(glink).valid_url():
+                            sources.append(hosted_media)
+                        else:
+                            print '    not resolvable by urlresolver!'
+                    else:
+                        hosted_media = urlresolver.HostedMediaFile(movLink)
+                        if urlresolver.HostedMediaFile(movLink).valid_url():
+                            sources.append(hosted_media)
+                        else:
+                            print '    not resolvable by urlresolver!'
+
+            except:
+                print " : no embedded urls found using wrapper method"
+
+            try:
+                videoclass = soup.find("div", { "class":"post-entry"})
+                plink = videoclass.p.iframe
+                movLink = plink.get('src')
+                if 'googleplay' in movLink:
+                    rlink = net.http_GET(movLink).content
+                    flink = net.http_GET(movLink).get_url()
+                    elink = re.findall('<source src="(.*?)"', rlink)[0] + '&stream=1'
+                    opener = urllib2.build_opener(NoRedirectHandler())
+                    opener.addheaders = [('Referer', flink)]
+                    urllib2.install_opener(opener)
+                    res = urllib2.urlopen(elink)
+                    glink = res.info().getheader('location')
+                    hosted_media = urlresolver.HostedMediaFile(glink)
+                    if urlresolver.HostedMediaFile(glink).valid_url():
+                        sources.append(hosted_media)
+                    else:
+                        print '    not resolvable by urlresolver!'
+                else:
+                    hosted_media = urlresolver.HostedMediaFile(movLink)
+                    if urlresolver.HostedMediaFile(movLink).valid_url():
+                        sources.append(hosted_media)
+                    else:
+                        print '    not resolvable by urlresolver!'
+
+            except:
+                print " : no embedded urls found using post entry method"
+
+            try:
+                jlink = re.findall('sources:.*file":"([^"]*)', link)[0]
+                elink = jlink.replace('\\/', '/') + '&stream=1'
+                #xbmc.log(msg='========== elink: ' + elink, level=xbmc.LOGNOTICE)
+                opener = urllib2.build_opener(NoRedirectHandler())
+                opener.addheaders = [('Referer', 'http://tamilgun.com')]
+                urllib2.install_opener(opener)
+                res = urllib2.urlopen(elink)
+                glink = res.info().getheader('location')
+                hosted_media = urlresolver.HostedMediaFile(glink)
+                if urlresolver.HostedMediaFile(glink).valid_url():
+                    sources.append(hosted_media)
+                else:
+                    print '    not resolvable by urlresolver!'
+
+            except:
+                print " : no embedded urls found using embed method"
+                
+            for idx, s in enumerate(sources):
+                if s.get_media_id():
+                    if s.get_host():
+                        addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
+                else:
+                    vidhost = re.findall('//(.*?)/', s.get_url())[0]
+                    movTitle = movTitle.decode('utf-8').encode('ascii','ignore')
+                    addon.add_video_item({'url': s.get_url()},{'title': movTitle + ': ' + vidhost},img=fanarturl,fanart=fanarturl)
 
     elif 'thiruttuvcd.me' in url:
             url = addon.queries.get('url', False)
@@ -1641,6 +1774,77 @@ elif mode == 'GetMovies':
             except:
                 print "No Pagination found"
 
+    elif 'tamilgun' in subUrl:
+            currPage = addon.queries.get('currPage', False)
+            if not currPage:
+                currPage = 1
+
+            if 'tamilgunnew' in subUrl:
+                tamilgunurl = 'http://tamilgun.com/categories/new-movies/page/' + str(currPage) + '/?order=latest'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/TamilGun/NewMovies'), session, visitor)
+            elif 'tamilgundubbed' in subUrl:
+                tamilgunurl = 'http://tamilgun.com/categories/dubbed-movies/page/' + str(currPage) + '/?order=latest'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/TamilGun/TamilDubbed'), session, visitor)
+            elif 'tamilgunhd' in subUrl:
+                tamilgunurl = 'http://tamilgun.com/categories/hd-movies/page/' + str(currPage) + '/?order=latest'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/TamilGun/HDMovies'), session, visitor)
+            elif 'tamilguncomedy' in subUrl:
+                tamilgunurl = 'http://tamilgun.com/categories/hd-comedys/page/' + str(currPage) + '/?order=latest'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/TamilGun/Comedy'), session, visitor)
+            elif 'tamilguntrailer' in subUrl:
+                tamilgunurl = 'http://tamilgun.com/categories/trailers/page/' + str(currPage) + '/?order=latest'
+                if ALLOW_HIT_CTR == 'true':
+                    tracker.track_pageview(Page('/TamilGun/Trailers'), session, visitor)
+
+            Dict_res = cache.cacheFunction(getMovList_tamilgun, tamilgunurl)
+
+            keylist = Dict_res.keys()
+            keylist.sort()
+            MovTitle_Str=""    
+            fanarturl_Str=""
+            
+            for key, value in Dict_res.iteritems():
+                if 'Paginator' not in value:
+                    SplitValues = value.split(",")
+                    try:
+                        for eachSplitVal in SplitValues:
+                            eachSplitVal = eachSplitVal.encode('utf8')
+                            if 'mode' in eachSplitVal:
+                                mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                            elif 'url' in eachSplitVal:
+                                fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                            elif 'imgLink' in eachSplitVal:
+                                fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                            elif 'MovTitle' in eachSplitVal:
+                                MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()
+                    
+                        if MovTitle_Str:
+                            addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+                    except:
+                        print "No likely exception caught"                        
+            try:
+                PaginatorVal = Dict_res['Paginator']
+                if PaginatorVal:
+                    SplitValues = PaginatorVal.split(",")
+                    for eachSplitVal in SplitValues:
+                        eachSplitVal = eachSplitVal.encode('utf8')
+                        if 'mode' in eachSplitVal:
+                            mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                        elif 'currPage' in eachSplitVal:
+                            currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                        elif 'subUrl' in eachSplitVal:
+                            subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                        elif 'title' in eachSplitVal:
+                            title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                    #print " SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
+                    addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
+            except:
+                print "No Pagination found"
+
     elif 'mersal' in subUrl:
             currPage = addon.queries.get('currPage', False)
             if not currPage:
@@ -1722,6 +1926,7 @@ elif mode == 'olangalMalayalam':
     if ALLOW_HIT_CTR == 'true':
         tracker.track_pageview(Page('/Olangal_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent'}, {'title': 'Recent Movies'})
+
 elif mode == 'abcmalayalam':
     if ALLOW_HIT_CTR == 'true':
         tracker.track_pageview(Page('/AbcMalayalam_Main'), session, visitor)
@@ -1729,6 +1934,7 @@ elif mode == 'abcmalayalam':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-shortFilm'}, {'title': 'Short Films'})
     if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-sizzling'}, {'title': 'Sizzling(18+)'})
+
 elif mode == 'rajTamil':
     if ALLOW_HIT_CTR == 'true':
         tracker.track_pageview(Page('/Rajtamil_Main'), session, visitor)
@@ -1738,6 +1944,15 @@ elif mode == 'rajTamil':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsVijayTV'}, {'title': 'TV Shows - Vijay TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsSunTV'}, {'title': 'TV Shows - Sun TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsZeeTamil'}, {'title': 'TV Shows - Zee Tamil'})
+
+elif mode == 'tamilgun':
+    if ALLOW_HIT_CTR == 'true':
+        tracker.track_pageview(Page('/TamilGun_Main'), session, visitor)
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilgunnew'}, {'title': 'Tamil New Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilgunhd'}, {'title': 'Tamil HD Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilgundubbed'}, {'title': 'Tamil Dubbed Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilguncomedy'}, {'title': 'Tamil Movie Comedy Scenes'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilguntrailer'}, {'title': 'Tamil Movie Trailers'})
 
 elif mode == 'thiruttuvcd':
     if ALLOW_HIT_CTR == 'true':
@@ -1780,12 +1995,13 @@ elif mode == 'KitMovies':
 
 
 elif mode == 'main':
-        addon.add_directory({'mode': 'abcmalayalam'}, {'title': 'Malayalam : ABCMalayalam'})
-        addon.add_directory({'mode': 'mersal'}, {'title': 'Malayalam, Tamil, Telugu, Hindi : Mersalaayitten'})
-        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent'}, {'title':'Malayalam : Olangal'})
-        addon.add_directory({'mode': 'rajTamil'}, {'title': 'Tamil : RajTamil'})
-        addon.add_directory({'mode': 'thiruttuvcd'}, {'title': 'Malayalam, Tamil, Telugu, Hindi : Thiruttu VCD'})
-        #addon.add_directory({'mode': 'KitMovies'}, {'title': 'Malayalam, Tamil, Hindi : KitMovie.com'})
+        addon.add_directory({'mode': 'abcmalayalam'}, {'title': 'ABCMalayalam : Malayalam'})
+        addon.add_directory({'mode': 'mersal'}, {'title': 'Mersalaayitten : Malayalam, Tamil, Telugu, Hindi'})
+        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent'}, {'title':'Olangal : Malayalam'})
+        addon.add_directory({'mode': 'rajTamil'}, {'title': 'RajTamil : Tamil'})
+        addon.add_directory({'mode': 'tamilgun'}, {'title': 'TamilGun : Tamil'})
+        addon.add_directory({'mode': 'thiruttuvcd'}, {'title': 'Thiruttu VCD : Malayalam, Tamil, Telugu, Hindi'})
+        #addon.add_directory({'mode': 'KitMovies'}, {'title': 'KitMovie.com : Malayalam, Tamil, Hindi'})
         addon.add_directory({'mode': 'Worship Songs'}, {'title': '[COLOR yellow]+ Worship Songs+[/COLOR]'})
         addon.add_directory({'mode': 'Worship Messages'}, {'title': '[COLOR yellow]+ Worship Messages+[/COLOR]'})
         addon.add_directory({'mode': 'PublicPlaylists'}, {'title': '[COLOR green]User submitted content[/COLOR]'})
