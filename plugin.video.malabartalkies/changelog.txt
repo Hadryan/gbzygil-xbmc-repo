@@ -1,22 +1,35 @@
+[B]Version 0.2.5 - 4 Apr 2016[/B]
+- Update by Gujal
+- Fix crashes on Android
+- Cleanup utf8 handling
+- Improve TamilGun scraper to pick more sources
+- Cleanup Rajtamil code, remove zee tv shows (defunct)
+
 [B]Version 0.2.4 - 20 Mar 2016[/B]
+- Update by Gujal
 - Added new MEGA source for movies : FilmLinks4U
 
 [B]Version 0.2.3 - 16 Mar 2016[/B]
+- Update by Gujal
 - Added new source for movies : TamilGun.com
 
 
 [B]Version 0.2.2 - 14 Mar 2016[/B]
+- Update by Gujal
 - Added new source for movies : Mersalaayitten.com
 - Removed Kitmovie
 
 [B]Version 0.2.1 - 8 Mar 2016[/B]
+- Update by Gujal
 - Rajtamil, Olangal website changes
 - Fixed Kitmovie
 
 [B]Version 0.2[/B]
+- Update by Gujal
 - Fixed olangal
 
 [B]Version 0.1.9[/B]
+- Update by Gujal
 - Fixed abcmalayalam and thiruttuvcd
 - rollback Adult content code.
 - Enable\Disable Adult content from addon settings (Disabled by default)
