@@ -1,3 +1,8 @@
+[B]Version 0.2.6 - 15 Apr 2016[/B]
+- Update by Gujal
+- New Source HindiLinks
+- New Source FirstTube
+
 [B]Version 0.2.5 - 4 Apr 2016[/B]
 - Update by Gujal
 - Fix crashes on Android
