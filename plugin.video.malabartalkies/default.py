@@ -539,10 +539,10 @@ def getMovList_hlinks(hlinksurl):
         movTitle = movTitle.replace('Documentary', '')
         movTitle = movTitle.replace('Hot Hindi Movie', '')
         movTitle = movTitle.strip()
-        if ('Adult' not in movdet.text) and ('hindi-movies' in hlinksurl):
+        if ('Adult' not in movdet.text) and ('adult' not in hlinksurl):
             ItemNum = ItemNum+1
             Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8') })
-        elif ('adult' in hlinksurl) and (SETTINGS_ENABLEADULT == 'true'):
+        elif (SETTINGS_ENABLEADULT == 'true'):
             ItemNum = ItemNum+1
             Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8') })
 
@@ -612,13 +612,12 @@ def getMovList_olangal(olangalurl):
     return Dict_movlist
 
 def getMovList_ABCmal(abcmalUrl):
-    #print "================ checking cache hit : function getMovList_ABCmal was called"
     Dict_movlist = {}
 
     link = net.http_GET(abcmalUrl).content
     soup = BeautifulSoup(link)
     ItemNum=0
-    for linksSection in soup.findAll("div", { "class":"itemContainer"}):
+    for linksSection in soup.findAll(class_='itemContainer'):
         ItemNum=ItemNum+1
         anchors = linksSection.findAll('a')
         anchorCnt = 0
@@ -644,6 +643,72 @@ def getMovList_ABCmal(abcmalUrl):
             Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(int(currPage) + 21) + ', title=' + paginationText})
         except:
             print " : no pagination code found"
+    return Dict_movlist
+
+def getMovList_ABCalt(abcaltUrl):
+    Dict_movlist = {}
+
+    req = urllib2.Request(abcaltUrl)
+    req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
+    response = urllib2.urlopen(req)
+    link=response.read()
+    response.close()
+    soup = BeautifulSoup(link)
+    lsoup = soup.find(class_='nag cf')
+    ItemNum = 0
+    Items = soup.find_all(class_='imgbox fpthumb shadow10d')
+    #xbmc.log(msg='========== Items: ' + str(Items), level=xbmc.LOGNOTICE)
+    for eachItem in Items:
+        movPage = eachItem.find('a')['href']
+        imgSrc = eachItem.find('img')['src']
+        movTitle = (eachItem.find('img')['alt']).encode('utf8')
+        movTitle = movTitle.replace('Malayalam', '')
+        movTitle = movTitle.replace('Tamil', '')
+        movTitle = movTitle.replace('MALAYALAM', '')
+        movTitle = movTitle.replace('Movies', '')
+        movTitle = movTitle.replace('Movie', '')
+        movTitle = movTitle.replace('movie', '')
+        movTitle = movTitle.replace('Film', '')
+        movTitle = movTitle.replace('film', '')
+        movTitle = movTitle.replace('New', '')
+        movTitle = movTitle.replace('MOVIE', '')
+        movTitle = movTitle.replace('Full', '')
+        movTitle = movTitle.replace('FULL', '')
+        movTitle = movTitle.replace('Length', '')
+        movTitle = movTitle.replace('Glamour', '')
+        movTitle = movTitle.replace('Masala', '')
+        movTitle = movTitle.replace('Latest', '')
+        movTitle = movTitle.replace('Romantic', '')
+        movTitle = movTitle.replace('Releases', '')
+        movTitle = movTitle.replace('HD', '')
+        movTitle = movTitle.replace('Hot', '')
+        movTitle = movTitle.replace('|', '')
+        movTitle = movTitle.replace('.', '')
+        movTitle = movTitle.strip()
+        ItemNum = ItemNum+1
+        Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8') })
+
+    Paginator = soup.find(class_='srizon-pagination hidden-phone visible-desktop')
+    currPage = Paginator.find('span', { 'class':'current'})
+    CurrentPage = int(currPage.string)
+    
+    for eachPage in Paginator.findAll('a'):
+        if "Next" not in eachPage.contents[0] and "Prev" not in eachPage.contents[0]:
+            lastPage = int(eachPage.string)    
+
+    if (CurrentPage < lastPage):
+        paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
+    else:
+        paginationText = ""
+
+    if 'sizzling' in abcaltUrl:
+        subUrl = 'ABCalt-sizzling'
+    elif 'comedy' in abcaltUrl:
+        subUrl = 'ABCalt-comedy'
+
+    if paginationText:
+        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+        
     return Dict_movlist
 
 def getMovLinksForEachMov(url):
@@ -693,6 +758,19 @@ def getMovLinksForEachMov(url):
         except:
                  print 'Nothing found using method 2!'
 
+        try:
+            links = soup.find_all(class_='movieplay')
+            for link in links:
+                if 'hqq.tv' not in str(link):
+                    url = link.find('iframe')['src']
+                    hosted_media = urlresolver.HostedMediaFile(url)
+                    if urlresolver.HostedMediaFile(url).valid_url():
+                        sources.append(hosted_media)
+                    else:
+                        print '    not resolvable by urlresolver!'
+        except:
+                 print 'Nothing found using method 3!'
+                
         sources = urlresolver.filter_source_list(sources)
         for idx, s in enumerate(sources):
             vidhost = re.findall('//(.*?)/', s.get_url())[0]
@@ -855,6 +933,27 @@ def getMovLinksForEachMov(url):
             vidhost = re.findall('//(.*?)/', s.get_url())[0]
             vidhost = re.findall('(?:.*\.|)(.*\..+)', vidhost)[0]
             addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)
+
+    elif 'youtube.com' in url:
+        url = addon.queries.get('url', False)
+        movTitle = str(addon.queries.get('title', False))
+        fanarturl = str(addon.queries.get('fanarturl', False))
+        sources = []
+
+        try:
+            hosted_media = urlresolver.HostedMediaFile(url)
+            if urlresolver.HostedMediaFile(url).valid_url():
+                sources.append(hosted_media)
+            else:
+                xbmc.log(msg = url + ' not resolvable by urlresolver!', level = xbmc.LOGNOTICE)
+
+        except:
+            print " : no embedded urls found using wrapper method"
+            
+        for idx, s in enumerate(sources):
+            vidhost = re.findall('//(.*?)/', s.get_url())[0]
+            vidhost = re.findall('(?:.*\.|)(.*\..+)', vidhost)[0]
+            addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)     
             
     elif 'tamilgun.com' in url:
         url = addon.queries.get('url', False)
@@ -1355,9 +1454,9 @@ def getMovLinksForEachMov(url):
         sources = []
 
         try:
-            linksDiv = soup.find("div", { "class":"itemFullText" })
+            linksDiv = soup.find(class_='itemFullText')
             # most pages have a trailer embebbed. Lets include that too
-            for linksSection in linksDiv.findAll("div", { "class":"avPlayerWrapper avVideo" }):
+            for linksSection in linksDiv.findAll(class_='avPlayerWrapper avVideo'):
                 vidurl = str(linksSection.find('iframe')['src'])
                 hosted_media = urlresolver.HostedMediaFile(vidurl)
                 if urlresolver.HostedMediaFile(vidurl).valid_url():
@@ -1381,9 +1480,9 @@ def getMovLinksForEachMov(url):
                  print 'Nothing found using method 2!'
 
         try:
-            linksDiv = soup.find("div", { "class":"itemIntroText" })
+            linksDiv = soup.find(class_='itemIntroText')
             # some pages have a intro. Lets include that too
-            for linksSection in linksDiv.findAll("div", { "class":"avPlayerWrapper avVideo" }):
+            for linksSection in linksDiv.findAll(class_='avPlayerWrapper avVideo'):
                 vidurl = str(linksSection.find('iframe')['src'])
                 hosted_media = urlresolver.HostedMediaFile(vidurl)
                 if urlresolver.HostedMediaFile(vidurl).valid_url():
@@ -1501,8 +1600,6 @@ elif mode == 'GetMovies':
             abcmalUrl = base_url + '/short-film?start=' + str(currPage)
             if ALLOW_HIT_CTR == 'true':
                 tracker.track_pageview(Page('/ABCMalayalam/ShortFilm'), session, visitor)
-        elif subUrl == 'ABCMalayalam-sizzling':
-            abcmalUrl = base_url + '/sizzling?start=' + str(currPage)
 
         Dict_res = cache.cacheFunction(getMovList_ABCmal, abcmalUrl)
             
@@ -1543,6 +1640,62 @@ elif mode == 'GetMovies':
                 #print " : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
         except:
             print "No pagination found"
+
+    if 'ABCalt' in subUrl:
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
+        if subUrl == 'ABCalt-sizzling':
+            abcaltUrl = base_url +  '/sizzling?jut1=' + str(currPage)
+        elif subUrl == 'ABCalt-comedy':
+            abcaltUrl = base_url + '/comedy?jut1=' + str(currPage)
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/ABCMalayalam/Comedy'), session, visitor)
+
+        Dict_res = cache.cacheFunction(getMovList_ABCalt, abcaltUrl)
+            
+        keylist = Dict_res.keys()
+        keylist.sort()
+        MovTitle_Str=""    
+        fanarturl_Str=""
+        
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                try:
+                    for eachSplitVal in SplitValues:
+                        eachSplitVal = eachSplitVal.encode('utf8')
+                        if 'mode' in eachSplitVal:
+                            mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                        elif 'url' in eachSplitVal:
+                            fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                        elif 'imgLink' in eachSplitVal:
+                            fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                        elif 'MovTitle' in eachSplitVal:
+                            MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()
+                
+                    if MovTitle_Str:
+                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+                except:
+                    print "No likely exception caught"                        
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                #print " SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
+        except:
+            print "No Pagination found"
 
     elif 'olangalMovies-Recent' in subUrl:
             if ALLOW_HIT_CTR == 'true':
@@ -1949,68 +2102,68 @@ elif mode == 'GetMovies':
                 print "No Pagination found"
 
     elif 'hlinks' in subUrl:
-            currPage = addon.queries.get('currPage', False)
-            if not currPage:
-                currPage = 1
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
 
-            if 'hlinkshindi' in subUrl:
-                hlinksurl = 'http://www.hindilinks4u.to/category/hindi-movies/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/HindiLinks4U/Hindi'), session, visitor)
-            elif 'hlinksdub' in subUrl:
-                hlinksurl = 'http://www.hindilinks4u.to/category/dubbed-movies/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/HindiLinks4U/Dubbed'), session, visitor)
-            elif 'hlinksadult' in subUrl:
-                hlinksurl = 'http://www.hindilinks4u.to/category/adult/page/' + str(currPage) + '?orderby=date'
-            elif 'hlinksdocu' in subUrl:
-                hlinksurl = 'http://www.hindilinks4u.to/category/documentaries/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/HindiLinks4U/Documentary'), session, visitor)
-                    
-            Dict_res = cache.cacheFunction(getMovList_hlinks, hlinksurl)
+        if 'hlinkshindi' in subUrl:
+            hlinksurl = 'http://www.hindilinks4u.to/category/hindi-movies/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/HindiLinks4U/Hindi'), session, visitor)
+        elif 'hlinksdub' in subUrl:
+            hlinksurl = 'http://www.hindilinks4u.to/category/dubbed-movies/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/HindiLinks4U/Dubbed'), session, visitor)
+        elif 'hlinksadult' in subUrl:
+            hlinksurl = 'http://www.hindilinks4u.to/category/adult/page/' + str(currPage) + '?orderby=date'
+        elif 'hlinksdocu' in subUrl:
+            hlinksurl = 'http://www.hindilinks4u.to/category/documentaries/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/HindiLinks4U/Documentary'), session, visitor)
+                
+        Dict_res = cache.cacheFunction(getMovList_hlinks, hlinksurl)
 
-            keylist = Dict_res.keys()
-            keylist.sort()
-            MovTitle_Str=""    
-            fanarturl_Str=""
-            
-            for key, value in Dict_res.iteritems():
-                if 'Paginator' not in value:
-                    SplitValues = value.split(",")
-                    try:
-                        for eachSplitVal in SplitValues:
-                            eachSplitVal = eachSplitVal.encode('utf8')
-                            if 'mode' in eachSplitVal:
-                                mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                            elif 'url' in eachSplitVal:
-                                fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
-                            elif 'imgLink' in eachSplitVal:
-                                fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
-                            elif 'MovTitle' in eachSplitVal:
-                                MovTitle_Str = str(eachSplitVal.encode('utf8').replace('MovTitle=', '')).strip()
-                    
-                        if MovTitle_Str:
-                            addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
-                    except:
-                        print "No likely exception caught"                        
-            try:
-                PaginatorVal = Dict_res['Paginator']
-                if PaginatorVal:
-                    SplitValues = PaginatorVal.split(",")
+        keylist = Dict_res.keys()
+        keylist.sort()
+        MovTitle_Str=""    
+        fanarturl_Str=""
+        
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                try:
                     for eachSplitVal in SplitValues:
                         eachSplitVal = eachSplitVal.encode('utf8')
                         if 'mode' in eachSplitVal:
                             mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                        elif 'currPage' in eachSplitVal:
-                            currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
-                        elif 'subUrl' in eachSplitVal:
-                            subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
-                        elif 'title' in eachSplitVal:
-                            title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                    addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-            except:
-                print "No Pagination found"
+                        elif 'url' in eachSplitVal:
+                            fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                        elif 'imgLink' in eachSplitVal:
+                            fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                        elif 'MovTitle' in eachSplitVal:
+                            MovTitle_Str = str(eachSplitVal.encode('utf8').replace('MovTitle=', '')).strip()
+                
+                    if MovTitle_Str:
+                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+                except:
+                    print "No likely exception caught"                        
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
+        except:
+            print "No Pagination found"
 
     elif 'mersal' in subUrl:
             currPage = addon.queries.get('currPage', False)
@@ -2088,74 +2241,74 @@ elif mode == 'GetMovies':
                 print "No Pagination found"
 
     elif 'ftube' in subUrl:
-            currPage = addon.queries.get('currPage', False)
-            if not currPage:
-                currPage = 1
-            if 'ftube_Tamil' in subUrl:
-                ftubeurl = 'http://firsttube.co/category/latest-tamil-movie/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FirstTube/Tamil'), session, visitor)
-            elif 'ftube_Telugu' in subUrl:
-                ftubeurl = 'http://firsttube.co/category/latest-telugu-movie/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FirstTube/Telugu'), session, visitor)
-            elif 'ftube_Hindi' in subUrl:
-                ftubeurl = 'http://firsttube.co/category/hindi-latest-movie/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FirstTube/Hindi'), session, visitor)
-            elif 'ftube_Dubbed' in subUrl:
-                ftubeurl = 'http://firsttube.co/category/hindi-dubbed/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FirstTube/Dubbed'), session, visitor)
-            elif 'ftube_Punjabi' in subUrl:
-                ftubeurl = 'http://firsttube.co/category/latest-punjabi-movie/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FirstTube/Punjabi'), session, visitor)
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
+        if 'ftube_Tamil' in subUrl:
+            ftubeurl = 'http://firsttube.co/category/latest-tamil-movie/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FirstTube/Tamil'), session, visitor)
+        elif 'ftube_Telugu' in subUrl:
+            ftubeurl = 'http://firsttube.co/category/latest-telugu-movie/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FirstTube/Telugu'), session, visitor)
+        elif 'ftube_Hindi' in subUrl:
+            ftubeurl = 'http://firsttube.co/category/hindi-latest-movie/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FirstTube/Hindi'), session, visitor)
+        elif 'ftube_Dubbed' in subUrl:
+            ftubeurl = 'http://firsttube.co/category/hindi-dubbed/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FirstTube/Dubbed'), session, visitor)
+        elif 'ftube_Punjabi' in subUrl:
+            ftubeurl = 'http://firsttube.co/category/latest-punjabi-movie/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FirstTube/Punjabi'), session, visitor)
 
-            Dict_res = cache.cacheFunction(getMovList_ftube, ftubeurl)
+        Dict_res = cache.cacheFunction(getMovList_ftube, ftubeurl)
 
-            keylist = Dict_res.keys()
-            keylist.sort()
-            MovTitle_Str=""    
-            fanarturl_Str=""
-            
-            for key, value in Dict_res.iteritems():
-                if 'Paginator' not in value:
-                    SplitValues = value.split(",")
-                    try:
-                        for eachSplitVal in SplitValues:
-                            eachSplitVal = eachSplitVal.encode('utf8')
-                            if 'mode' in eachSplitVal:
-                                mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                            elif 'url' in eachSplitVal:
-                                fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
-                            elif 'imgLink' in eachSplitVal:
-                                fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
-                            elif 'MovTitle' in eachSplitVal:
-                                MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()
-                    
-                        if MovTitle_Str:
-                            addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
-                    except:
-                        print "No likely exception caught"                        
-            try:
-                PaginatorVal = Dict_res['Paginator']
-                if PaginatorVal:
-                    SplitValues = PaginatorVal.split(",")
+        keylist = Dict_res.keys()
+        keylist.sort()
+        MovTitle_Str=""    
+        fanarturl_Str=""
+        
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                try:
                     for eachSplitVal in SplitValues:
                         eachSplitVal = eachSplitVal.encode('utf8')
                         if 'mode' in eachSplitVal:
                             mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                        elif 'currPage' in eachSplitVal:
-                            currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
-                        elif 'subUrl' in eachSplitVal:
-                            subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
-                        elif 'title' in eachSplitVal:
-                            title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                    #print " SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
-                    addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-            except:
-                print "No Pagination found"
+                        elif 'url' in eachSplitVal:
+                            fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                        elif 'imgLink' in eachSplitVal:
+                            fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                        elif 'MovTitle' in eachSplitVal:
+                            MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()
+                
+                    if MovTitle_Str:
+                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+                except:
+                    print "No likely exception caught"                        
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                #print " SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
+        except:
+            print "No Pagination found"
                 
     dlg.close()
 
@@ -2168,9 +2321,10 @@ elif mode == 'abcmalayalam':
     if ALLOW_HIT_CTR == 'true':
         tracker.track_pageview(Page('/AbcMalayalam_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-Mal'}, {'title': 'Malayalam Movies'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-shortFilm'}, {'title': 'Short Films'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-shortFilm'}, {'title': 'Malayalam Short Films'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCalt-comedy'}, {'title': 'Malayalam Comedy'})
     if SETTINGS_ENABLEADULT == 'true':
-        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-sizzling'}, {'title': 'Sizzling(18+)'})
+        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCalt-sizzling'}, {'title': 'Sizzling (18+)'})
 
 elif mode == 'rajTamil':
     if ALLOW_HIT_CTR == 'true':
