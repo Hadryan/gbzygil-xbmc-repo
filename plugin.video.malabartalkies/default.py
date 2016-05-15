@@ -102,13 +102,58 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
         except:
             print "No next page"
 
+    elif '/private/' in thiruttuvcd_url:
+        url = thiruttuvcd_url
+        subUrl = 'thiruttuvcd_adult'
+        link = net.http_GET(url).content
+        soup = BeautifulSoup(link,'html.parser')
+        ItemNum = 0
+        Items = soup.find_all(class_="boxentry")
+        #xbmc.log(msg='========== Items: ' + str(Items), level=xbmc.LOGNOTICE)
+        for eachItem in Items:
+            ItemNum = ItemNum+1
+            movPage = eachItem.find('a')['href']
+            imgSrc = eachItem.find('img')['src']
+            movTitle = (eachItem.find('a')['title']).encode('utf8')
+            movTitle = movTitle.replace('Hot', '')
+            movTitle = movTitle.replace('Movies', '')
+            movTitle = movTitle.replace('Movie', '')
+            movTitle = movTitle.replace('Glamour', '')
+            movTitle = movTitle.replace('Romantic', '')
+            movTitle = movTitle.replace('Sex', '')
+            movTitle = movTitle.replace('Full', '')
+            movTitle = movTitle.replace('Adults', '')
+            movTitle = movTitle.replace('hot', '')
+            movTitle = movTitle.replace('Hindi', '')
+            movTitle = movTitle.replace('Bollywood', '')
+            movTitle = movTitle.replace('movie', '')
+            movTitle = movTitle.replace('Tamil', '')
+            movTitle = movTitle.replace('full', '')
+            movTitle = movTitle.replace('Watch', '')
+            movTitle = movTitle.replace('Online', '')
+            movTitle = movTitle.replace('online', '')
+            movTitle = movTitle.replace('Telugu', '')
+            movTitle = movTitle.replace('Malayalam', '')
+            movTitle = movTitle.replace('Length', '')
+            movTitle = movTitle.replace('Masala', '')
+            movTitle = movTitle.replace('18+', '')
+            movTitle = movTitle.strip()
+            Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8')})
+
+        CurrentPage = int(re.findall("class='current'>(.*?)<", link)[0])
+        lastPage = int(re.findall("class='pages'>.*?of (.*?)<", link)[0])
+
+        if (CurrentPage < lastPage):
+            paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
+        else:
+            paginationText = ""
+            
+        if paginationText:
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+
     else:
         url = thiruttuvcd_url
-        req = urllib2.Request(url)
-        req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
-        response = urllib2.urlopen(req)
-        link = response.read()
-        response.close()
+        link = net.http_GET(url).content
         soup = BeautifulSoup(link)
         ItemNum=0
         for eachItem in soup.findAll("div", { "class":"postbox" }):
@@ -120,15 +165,18 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
             img = eachItem.find('img')['src']
             movTitle = eachItem.find('img')['alt']
             movTitle = re.sub('Tamil', '', movTitle)
+            movTitle = re.sub('Hindi', '', movTitle)
+            movTitle = re.sub('Malayalam', '', movTitle)
+            movTitle = re.sub('Telugu', '', movTitle)
             movTitle = re.sub('Movie', '', movTitle)
             movTitle = re.sub('Watch', '', movTitle)
+            movTitle = re.sub('watch', '', movTitle)
             movTitle = re.sub('Online', '', movTitle)
-
+            movTitle = movTitle.strip()
             if ('MP3' not in movTitle) & ('Songs' not in movTitle):
                 Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + link + ', imgLink=' + img+', MovTitle='+movTitle})
 
         CurrPage = soup.find("span", { "class":"pages" })
-
         txt = CurrPage.text
         re1 = '.*?'  # Non-greedy match on filler
         re2 = '(\\d+)'  # Integer Number 1
@@ -136,16 +184,22 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
         m = rg.search(txt)
         if m:
             int1 = m.group(1)
-            CurrPage1 = int1
+            CurrentPage = int(int1)
             #print "(" + int1 + ")" + "\n"
             paginationText = "( Currently in " + txt + ")\n"
-            if 'hindi-movies-online' in thiruttuvcd_url:
-                Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=thiruttuvcd_hindiMovs, currPage=' + str(int(CurrPage1) + 1) + ',title=Next Page.. ' + paginationText})
-            elif 'telugu-movies'  in thiruttuvcd_url:
-                Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=thiruttuvcd_teluguMovs, currPage=' + str(int(CurrPage1) + 1) + ',title=Next Page.. ' + paginationText})
-            else:
-                Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=thiruttuvcd_tamilMovs, currPage=' + str(int(CurrPage1) + 1) + ',title=Next Page.. ' + paginationText})
 
+        if 'tamil-movies' in thiruttuvcd_url:
+            subUrl = 'thiruttuvcd_tamilMovs'
+        elif 'malayalam/' in thiruttuvcd_url:
+            subUrl = 'thiruttuvcd_MalayalamMovs'
+        elif 'telugu-movie' in thiruttuvcd_url:
+            subUrl = 'thiruttuvcd_teluguMovs'
+        elif 'hindi-movies' in thiruttuvcd_url:
+            subUrl = 'thiruttuvcd_hindiMovs'
+            
+        if paginationText:
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+        
     return Dict_movlist
 
 def getMovList_rajtamil(rajTamilurl):
@@ -416,29 +470,30 @@ def getMovList_flinks(flinksurl):
         imgSrc = eachItem.find('img')['src']
         movTitle = (eachItem.find('a')['title']).encode('utf8')
         movTitle = movTitle.replace(hyph, '')
-        movTitle = movTitle.replace('Watch ', '')
-        movTitle = movTitle.replace(' Tamil ', '')
-        movTitle = movTitle.replace(' Malayalam ', '')
-        movTitle = movTitle.replace(' Telugu ', '')
-        movTitle = movTitle.replace(' Hindi ', '')
-        movTitle = movTitle.replace(' Kannada ', '')
-        movTitle = movTitle.replace(' Hollywood ', '')
-        movTitle = movTitle.replace('Movie ', '')
-        movTitle = movTitle.replace('Short', '')
+        movTitle = movTitle.replace('Watch', '')
+        movTitle = movTitle.replace('Tamil', '')
+        movTitle = movTitle.replace('Malayalam', '')
+        movTitle = movTitle.replace('Telugu', '')
+        movTitle = movTitle.replace('Hindi', '')
+        movTitle = movTitle.replace('Kannada', '')
+        movTitle = movTitle.replace('Hollywood', '')
+        movTitle = movTitle.replace('Movie', '')
+        movTitle = movTitle.replace('Short ', '')
         movTitle = movTitle.replace('Online', '')
-        movTitle = movTitle.replace(' Biography ', '')
-        movTitle = movTitle.replace(' Documentary ', '')
-        movTitle = movTitle.replace('Full Free', '')
-        movTitle = movTitle.replace(' Bengali ', '')
-        movTitle = movTitle.replace(' Bhojpuri ', '')
-        movTitle = movTitle.replace(' Gujarati ', '')
-        movTitle = movTitle.replace(' Marathi ', '')
-        movTitle = movTitle.replace(' Nepali ', '')
-        movTitle = movTitle.replace(' Oriya ', '')
-        movTitle = movTitle.replace(' Punjabi ', '')
-        movTitle = movTitle.replace(' Panjabi ', '')
-        movTitle = movTitle.replace(' Rajasthani ', '')
-        movTitle = movTitle.replace(' Urdu ', '')
+        movTitle = movTitle.replace('Biography', '')
+        movTitle = movTitle.replace('Documentary', '')
+        movTitle = movTitle.replace('Full', '')
+        movTitle = movTitle.replace('Free', '')
+        movTitle = movTitle.replace('Bengali', '')
+        movTitle = movTitle.replace('Bhojpuri', '')
+        movTitle = movTitle.replace('Gujarati', '')
+        movTitle = movTitle.replace('Marathi', '')
+        movTitle = movTitle.replace('Nepali', '')
+        movTitle = movTitle.replace('Oriya', '')
+        movTitle = movTitle.replace('Punjabi', '')
+        movTitle = movTitle.replace('Panjabi', '')
+        movTitle = movTitle.replace('Rajasthani', '')
+        movTitle = movTitle.replace('Urdu', '')
         movTitle = movTitle.strip()
         #xbmc.log(msg='==========Title: ' + movTitle + '\n========== Item Genre: ' + (asoup.text).encode('utf-8'), level=xbmc.LOGNOTICE)
         if ('Adult' not in asoup.text):
@@ -1083,7 +1138,7 @@ def getMovLinksForEachMov(url):
         for eachdetail in itemdetails:
             if 'Adult' in str(eachdetail):
                 cleanmov = False
-        xbmc.log(msg='==========cleanmov: ' + str(cleanmov) + ' adult setting:' + SETTINGS_ENABLEADULT, level=xbmc.LOGNOTICE)
+        #xbmc.log(msg='==========cleanmov: ' + str(cleanmov) + ' adult setting:' + SETTINGS_ENABLEADULT, level=xbmc.LOGNOTICE)
         
         try:
             ilink = lsoup.find("iframe")
@@ -1103,57 +1158,86 @@ def getMovLinksForEachMov(url):
 
         except:
             print " : no embedded urls found using iframe method"
+        
+        try:
+            blink = re.findall("ajaxurl = '(.*?)'", link)[0]
+            postid = re.findall("'post_id':'(.*?)'", link)[0]
+            values = {'action' : 'create_player_box',
+                      'post_id' : postid }
+            header = {'Referer' : 'http://www.filmlinks4u.to/',
+                      'X-Requested-With' : 'XMLHttpRequest'}
+            playbox = net.http_POST(blink, values, header).content
+            psoup = BeautifulSoup(playbox)
+            #xbmc.log(msg='========== Psoup: ' + (psoup.prettify().encode('utf-8')), level=xbmc.LOGNOTICE)
+            tsoup = psoup.find(class_='tabs')
+            tabs = tsoup.findAll('div')
+            #xbmc.log(msg='========== Tabs: ' + str(tabs), level=xbmc.LOGNOTICE)
+            for eachtab in tabs:
+                vidurl = re.findall('data-href="(.*?)"', str(eachtab))[0]
+                if cleanmov:
+                    hosted_media = urlresolver.HostedMediaFile(vidurl)
+                    if urlresolver.HostedMediaFile(vidurl).valid_url():
+                        sources.append(hosted_media)
+                    else:
+                        xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
+                elif SETTINGS_ENABLEADULT == 'true':
+                    hosted_media = urlresolver.HostedMediaFile(vidurl)
+                    if urlresolver.HostedMediaFile(vidurl).valid_url():
+                        sources.append(hosted_media)
+                    else:
+                        xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
 
+        except:
+            print " : no embedded urls found using player_box method"
+            
         try:
             links = lsoup.findAll(class_='external')
             #xbmc.log(msg='========== Items: ' + str(links), level=xbmc.LOGNOTICE)
             for plink in links:
-                url = plink.get('href')
+                url = re.findall('href="(.*?)"', str(plink))[0]
                 #xbmc.log(msg='========== Item: ' + str(url), level=xbmc.LOGNOTICE)
-                if 'cineview' in url:
+                if ('cineview' in url) or ('bollyheaven' in url) or ('videolinkz' in url):
+                    clink = net.http_GET(url).content
+                    csoup = BeautifulSoup(clink)
                     try:
-                        clink = net.http_GET(url).content
-                        csoup = BeautifulSoup(clink)
-                        try:
-                            for linksSection in csoup.findAll('iframe'):
-                                vidurl = linksSection.get('src')
-                                if ('cineview' not in vidurl):
-                                    if cleanmov:
-                                        hosted_media = urlresolver.HostedMediaFile(vidurl)
-                                        if urlresolver.HostedMediaFile(vidurl).valid_url():
-                                            sources.append(hosted_media)
-                                        else:
-                                            xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
-                                    elif SETTINGS_ENABLEADULT == 'true':
-                                        hosted_media = urlresolver.HostedMediaFile(vidurl)
-                                        if urlresolver.HostedMediaFile(vidurl).valid_url():
-                                            sources.append(hosted_media)
-                                        else:
-                                            xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
-                        except:
-                            print " : no iframe urls found using cineview method"
-                        try:
-                            for linksSection in csoup.findAll('embed'):
-                                vidurl = linksSection.get('src')
-                                if ('cineview' not in vidurl):
-                                    if cleanmov:
-                                        hosted_media = urlresolver.HostedMediaFile(vidurl)
-                                        if urlresolver.HostedMediaFile(vidurl).valid_url():
-                                            sources.append(hosted_media)
-                                        else:
-                                            xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
-                                    elif SETTINGS_ENABLEADULT == 'true':
-                                        hosted_media = urlresolver.HostedMediaFile(vidurl)
-                                        if urlresolver.HostedMediaFile(vidurl).valid_url():
-                                            sources.append(hosted_media)
-                                        else:
-                                            xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
-                        except:
-                            print " : no embed urls found using cineview method"
+                        for linksSection in csoup.findAll('iframe'):
+                            vidurl = linksSection.get('src')
+                            if ('desihome.co' not in vidurl) and ('cineview' not in vidurl) and ('bollyheaven' not in vidurl) and ('videolinkz' not in vidurl):
+                                if cleanmov:
+                                    hosted_media = urlresolver.HostedMediaFile(vidurl)
+                                    if urlresolver.HostedMediaFile(vidurl).valid_url():
+                                        sources.append(hosted_media)
+                                    else:
+                                        xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
+                                elif SETTINGS_ENABLEADULT == 'true':
+                                    hosted_media = urlresolver.HostedMediaFile(vidurl)
+                                    if urlresolver.HostedMediaFile(vidurl).valid_url():
+                                        sources.append(hosted_media)
+                                    else:
+                                        xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
+                    except:
+                        print " : no iframe urls found using cineview method"
+                    try:
+                        for linksSection in csoup.findAll('embed'):
+                            vidurl = linksSection.get('src')
+                            if ('desihome.co' not in vidurl) and ('cineview' not in vidurl) and ('bollyheaven' not in vidurl) and ('videolinkz' not in vidurl):
+                                if cleanmov:
+                                    hosted_media = urlresolver.HostedMediaFile(vidurl)
+                                    if urlresolver.HostedMediaFile(vidurl).valid_url():
+                                        sources.append(hosted_media)
+                                    else:
+                                        xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
+                                elif SETTINGS_ENABLEADULT == 'true':
+                                    hosted_media = urlresolver.HostedMediaFile(vidurl)
+                                    if urlresolver.HostedMediaFile(vidurl).valid_url():
+                                        sources.append(hosted_media)
+                                    else:
+                                        xbmc.log(msg='========> src: ' + vidurl + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
                     except:
                         print " : no embed urls found using cineview method"
+                        
                 else:
-                    if ('facebook' not in url) and ('twitter' not in url):
+                    if ('imdb.com' not in url) and ('mgid.com' not in url) and ('desihome' not in url):
                         if cleanmov:
                             hosted_media = urlresolver.HostedMediaFile(url)
                             if urlresolver.HostedMediaFile(url).valid_url():
@@ -1166,7 +1250,7 @@ def getMovLinksForEachMov(url):
                                 sources.append(hosted_media)
                             else:
                                 xbmc.log(msg='========> src: ' + url + ' not resolvable by urlresolver!', level=xbmc.LOGNOTICE)
-                                
+                
         except:
             print " : no embedded urls found using cineview method"
             
@@ -1348,6 +1432,34 @@ def getMovLinksForEachMov(url):
                     xbmc.log(msg=vidurl + ' is NOT resolvable by urlresolver!', level=xbmc.LOGNOTICE)
         except:
                  print 'Nothing found using method 2!'
+
+        sources = urlresolver.filter_source_list(sources)
+        for idx, s in enumerate(sources):
+            vidhost = re.findall('//(.*?)/', s.get_url())[0]
+            vidhost = re.findall('(?:.*\.|)(.*\..+)', vidhost)[0]
+            addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)
+
+    elif 'thiruttuvcds' in url:
+        url = addon.queries.get('url', False)
+        subUrl = addon.queries.get('subUrl', False)
+        movTitle = str(addon.queries.get('title', False))
+        fanarturl = str(addon.queries.get('img', False))
+        link = net.http_GET(url).content
+        soup = BeautifulSoup(link,'html.parser')
+        sources = []
+
+        try:
+            linksDiv = soup.find("div", { "class":"videosection" })
+            links = linksDiv.find_all('iframe')			
+            for link in links:
+                vidurl = link.get('src').strip()
+                hosted_media = urlresolver.HostedMediaFile(vidurl)
+                if urlresolver.HostedMediaFile(vidurl).valid_url():
+                    sources.append(hosted_media)
+                else:
+                    xbmc.log(msg=vidurl + ' is NOT resolvable by urlresolver!', level=xbmc.LOGNOTICE)
+        except:
+                 print 'Nothing found using youtube method!'
 
         sources = urlresolver.filter_source_list(sources)
         for idx, s in enumerate(sources):
@@ -1745,7 +1857,7 @@ elif mode == 'GetMovies':
             except:
                 print "No Pagination found"
 
-    elif ('thiruttuvcd' in subUrl) & ('MP3' not in subUrl):
+    elif ('thiruttuvcd' in subUrl) and ('MP3' not in subUrl):
             currPage = addon.queries.get('currPage', False)
             if not currPage:
                 currPage = 1
@@ -1755,6 +1867,8 @@ elif mode == 'GetMovies':
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/malayalam/page/' + str(currPage) + '/'
                 if ALLOW_HIT_CTR == 'true':
                     tracker.track_pageview(Page('/ThiruttuVcd/Malayalam'), session, visitor)          
+            elif 'thiruttuvcd_adult' in subUrl:
+                thiruttuvcd_url = 'http://thiruttuvcds.com/private/page/' + str(currPage) + '/'
             elif 'thiruttuvcd_tamilMovs' in subUrl:
                 #thiruttuvcd_url = 'http://www.thiruttuvcd.me/page/' + str(currPage) + '/'
                 thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/tamil-movies-online/page/' + str(currPage) + '/'
@@ -2388,6 +2502,8 @@ elif mode == 'thiruttuvcd':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_tamilMovs'}, {'title': 'Tamil Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_teluguMovs'}, {'title': 'Telugu Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_hindiMovs'}, {'title': 'Hindi Movies'})
+    if SETTINGS_ENABLEADULT == 'true':
+        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_adult'}, {'title': 'Adult Movies'})
     if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_masala'}, {'title': 'Thiruttu Masala'})
 
