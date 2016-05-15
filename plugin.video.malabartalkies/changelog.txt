@@ -1,3 +1,7 @@
+[B]Version 0.2.8 - 15 May 2016[/B]
+- Update by Gujal
+- Site code changes in FilmLinks4U
+
 [B]Version 0.2.7 - 16 Apr 2016[/B]
 - Update by Gujal
 - New scrape method in Olangal
