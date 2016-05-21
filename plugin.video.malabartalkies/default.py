@@ -78,15 +78,13 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
     Dict_movlist = {}
 
     if 'thiruttumasala' in thiruttuvcd_url:
-        req = urllib2.Request(thiruttuvcd_url)
-        req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
-        response = urllib2.urlopen(req)
-        link = response.read()
-        response.close()
+        url = thiruttuvcd_url
+        subUrl = 'thiruttuvcd_masala'
+        link = net.http_GET(url).content
         base_url = 'http://www.thiruttumasala.com'
         soup = BeautifulSoup(link)
         ItemNum=0
-        for eachItem in soup.findAll("div", { "class":"video_box" }):
+        for eachItem in soup.findAll('div', { 'class':'video_box' }):
             ItemNum=ItemNum+1
             links = eachItem.find_all('a')
             for link in links:
@@ -95,12 +93,22 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
             img = eachItem.find('img')['src']
             movTitle = eachItem.find('img')['alt']
             Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + base_url + link + ', imgLink=' + base_url + img+', MovTitle='+movTitle})
-        try:
-            CurrPage = soup.find("span", { "class":"currentpage" })
-            paginationText = "( Currently in Page " + CurrPage.text + ")\n"
-            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(int(CurrPage.text) + 1) + ',title=Next Page.. ' + paginationText})
-        except:
-            print "No next page"
+
+        Paginator = soup.find('div', { 'class':'pagination'})
+        currPage = Paginator.find('span', { 'class':'currentpage'})
+        CurrentPage = int(currPage.string)
+
+        for eachPage in Paginator.findAll('a'):
+            if ('Next' not in eachPage.contents[0]) and ('Prev' not in eachPage.contents[0]):
+                lastPage = int(eachPage.string)
+                
+        if (CurrentPage < lastPage):
+            paginationText = '(Currently in Page ' + str(CurrentPage) + ' of ' + str(lastPage) + ')\n'
+        else:
+            paginationText = ''
+            
+        if paginationText:
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
 
     elif '/private/' in thiruttuvcd_url:
         url = thiruttuvcd_url
@@ -108,8 +116,7 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
         link = net.http_GET(url).content
         soup = BeautifulSoup(link,'html.parser')
         ItemNum = 0
-        Items = soup.find_all(class_="boxentry")
-        #xbmc.log(msg='========== Items: ' + str(Items), level=xbmc.LOGNOTICE)
+        Items = soup.find_all(class_='boxentry')
         for eachItem in Items:
             ItemNum = ItemNum+1
             movPage = eachItem.find('a')['href']
@@ -144,9 +151,9 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
         lastPage = int(re.findall("class='pages'>.*?of (.*?)<", link)[0])
 
         if (CurrentPage < lastPage):
-            paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
+            paginationText = '(Currently in Page ' + str(CurrentPage) + ' of ' + str(lastPage) + ')\n'
         else:
-            paginationText = ""
+            paginationText = ''
             
         if paginationText:
             Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
@@ -156,7 +163,7 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
         link = net.http_GET(url).content
         soup = BeautifulSoup(link)
         ItemNum=0
-        for eachItem in soup.findAll("div", { "class":"postbox" }):
+        for eachItem in soup.findAll('div', { 'class':'postbox' }):
             ItemNum=ItemNum+1
             links = eachItem.find_all('a')
             for link in links:
@@ -176,7 +183,7 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
             if ('MP3' not in movTitle) & ('Songs' not in movTitle):
                 Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + link + ', imgLink=' + img+', MovTitle='+movTitle})
 
-        CurrPage = soup.find("span", { "class":"pages" })
+        CurrPage = soup.find('span', { 'class':'pages' })
         txt = CurrPage.text
         re1 = '.*?'  # Non-greedy match on filler
         re2 = '(\\d+)'  # Integer Number 1
@@ -185,8 +192,7 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
         if m:
             int1 = m.group(1)
             CurrentPage = int(int1)
-            #print "(" + int1 + ")" + "\n"
-            paginationText = "( Currently in " + txt + ")\n"
+            paginationText = "(Currently in " + txt + ")\n"
 
         if 'tamil-movies' in thiruttuvcd_url:
             subUrl = 'thiruttuvcd_tamilMovs'
@@ -416,6 +422,18 @@ def getMovList_tamilgun(tamilgunurl):
         movTitle = eachItem.h3.a.string
         movPage = eachItem.find('a')['href']
         imgSrc = eachItem.find('img')['src']
+        movTitle = movTitle.replace('Full', '')
+        movTitle = movTitle.replace('full', '')
+        movTitle = movTitle.replace('-', '')
+        movTitle = movTitle.replace('Comedy', '')
+        movTitle = movTitle.replace('comedy', '')
+        movTitle = movTitle.replace('Scenes', '')
+        movTitle = movTitle.replace('scenes', '')
+        movTitle = movTitle.replace('Movie', '')
+        movTitle = movTitle.replace('Best', '')
+        movTitle = movTitle.replace('Tamil ', '')
+        movTitle = movTitle.replace('Collection', '')
+        movTitle = movTitle.strip()
         Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc+', MovTitle='+movTitle})
 
     Paginator = lsoup.find("ul", { "class":"pagination"})
@@ -1089,8 +1107,21 @@ def getMovLinksForEachMov(url):
                     if 'tamildbox' in movLink:
                         dlink = net.http_GET(movLink).content
                         dsoup = BeautifulSoup(dlink)
+                        
                         dclass = dsoup.find("div", { "id":"player-embed" })
+                        if 'unescape' in str(dclass):
+                            etext = re.findall("unescape.'[^']*", str(dclass))[0]
+                            etext = urllib.unquote(etext)
+                            dclass = BeautifulSoup(etext)
                         glink = dclass.iframe.get('src')
+                        hosted_media = urlresolver.HostedMediaFile(glink)
+                        if urlresolver.HostedMediaFile(glink).valid_url():
+                            sources.append(hosted_media)
+                        else:
+                            xbmc.log(msg = glink + ' not resolvable by urlresolver!', level = xbmc.LOGNOTICE)
+                        
+                        dclass = dsoup.find(class_='item-content')
+                        glink = dclass.p.iframe.get('src')
                         hosted_media = urlresolver.HostedMediaFile(glink)
                         if urlresolver.HostedMediaFile(glink).valid_url():
                             sources.append(hosted_media)
@@ -1106,7 +1137,7 @@ def getMovLinksForEachMov(url):
         try:
             jlink = re.findall('sources:.*file":"([^"]*)', link)[0]
             elink = jlink.replace('\\/', '/')
-            if 'tamilgun' in elink:
+            if ('tamilgun' in elink) or ('m3u8' in elink):
                 li = xbmcgui.ListItem('tamilgun.com', iconImage=fanarturl)
                 li.setArt({ 'fanart': fanarturl })
                 li.setProperty('IsPlayable', 'true')
@@ -2436,9 +2467,9 @@ elif mode == 'abcmalayalam':
         tracker.track_pageview(Page('/AbcMalayalam_Main'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-Mal'}, {'title': 'Malayalam Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCMalayalam-shortFilm'}, {'title': 'Malayalam Short Films'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCalt-comedy'}, {'title': 'Malayalam Comedy'})
-    if SETTINGS_ENABLEADULT == 'true':
-        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCalt-sizzling'}, {'title': 'Sizzling (18+)'})
+    #addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCalt-comedy'}, {'title': 'Malayalam Comedy'})
+    #if SETTINGS_ENABLEADULT == 'true':
+    #    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ABCalt-sizzling'}, {'title': 'Sizzling (18+)'})
 
 elif mode == 'rajTamil':
     if ALLOW_HIT_CTR == 'true':
