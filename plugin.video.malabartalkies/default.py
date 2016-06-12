@@ -44,6 +44,7 @@ cache = StorageServer.StorageServer("malabartalkies", SETTINGS_CACHE_TIMEOUT)
 net = Net()
 logo = os.path.join(addon.get_path(), 'icon.png')
 currPage = 0
+search_text = ''
 paginationText = ''
 mode = addon.queries['mode']
 play = addon.queries.get('play', None)
@@ -72,6 +73,15 @@ class NoRedirectHandler(urllib2.HTTPRedirectHandler):
     http_error_302 = http_error_301
     http_error_307 = http_error_301
     # just keep adding error codes to cover all the ones you want reported instead of having exceptions raised
+
+def GetSearchQuery(sitename):
+    keyboard = xbmc.Keyboard()
+    keyboard.setHeading('Search ' + sitename)
+    keyboard.doModal()
+    if keyboard.isConfirmed():
+        search_text = keyboard.getText()
+    
+    return search_text
 
 def getMovList_thiruttuvcd(thiruttuvcd_url):
     #print "================ checking cache hit : function getMovList_thiruttuvcd was called"
@@ -171,28 +181,35 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
                     link = link.get('href')
             img = eachItem.find('img')['src']
             movTitle = eachItem.find('img')['alt']
-            movTitle = re.sub('Tamil', '', movTitle)
-            movTitle = re.sub('Hindi', '', movTitle)
-            movTitle = re.sub('Malayalam', '', movTitle)
-            movTitle = re.sub('Telugu', '', movTitle)
-            movTitle = re.sub('Movie', '', movTitle)
-            movTitle = re.sub('Watch', '', movTitle)
-            movTitle = re.sub('watch', '', movTitle)
-            movTitle = re.sub('Online', '', movTitle)
+            movTitle = movTitle.replace('Full', '')
+            movTitle = movTitle.replace('For Free', '')
+            movTitle = movTitle.replace('Tamil', '')
+            movTitle = movTitle.replace('Hindi', '')
+            movTitle = movTitle.replace('Malayalam', '')
+            movTitle = movTitle.replace('Telugu', '')
+            movTitle = movTitle.replace('Movie', '')
+            movTitle = movTitle.replace('Watch', '')
+            movTitle = movTitle.replace('watch', '')
+            movTitle = movTitle.replace('Online', '')
+            movTitle = movTitle.replace('online', '')
+            movTitle = movTitle.replace('Download', '')
+            movTitle = movTitle.replace('download', '')
             movTitle = movTitle.strip()
             if ('MP3' not in movTitle) & ('Songs' not in movTitle):
                 Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + link + ', imgLink=' + img+', MovTitle='+movTitle})
 
+        paginationText = ''
         CurrPage = soup.find('span', { 'class':'pages' })
-        txt = CurrPage.text
-        re1 = '.*?'  # Non-greedy match on filler
-        re2 = '(\\d+)'  # Integer Number 1
-        rg = re.compile(re1 + re2, re.IGNORECASE | re.DOTALL)
-        m = rg.search(txt)
-        if m:
-            int1 = m.group(1)
-            CurrentPage = int(int1)
-            paginationText = "(Currently in " + txt + ")\n"
+        if CurrPage:
+            txt = CurrPage.text
+            re1 = '.*?'  # Non-greedy match on filler
+            re2 = '(\\d+)'  # Integer Number 1
+            rg = re.compile(re1 + re2, re.IGNORECASE | re.DOTALL)
+            m = rg.search(txt)
+            if m:
+                int1 = m.group(1)
+                CurrentPage = int(int1)
+                paginationText = "(Currently in " + txt + ")\n"
 
         if 'tamil-movies' in thiruttuvcd_url:
             subUrl = 'thiruttuvcd_tamilMovs'
@@ -202,14 +219,15 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
             subUrl = 'thiruttuvcd_teluguMovs'
         elif 'hindi-movies' in thiruttuvcd_url:
             subUrl = 'thiruttuvcd_hindiMovs'
+        elif '/?s=' in thiruttuvcd_url:
+            subUrl = 'thiruttuvcd_search'
             
         if paginationText:
-            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})            
         
     return Dict_movlist
 
 def getMovList_rajtamil(rajTamilurl):
-    #print "================ checking cache hit : function getMovList_rajtamil was called"
 
     Dict_movlist = {}
     link = net.http_GET(rajTamilurl).content
@@ -257,17 +275,18 @@ def getMovList_rajtamil(rajTamilurl):
             Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8')})
 
     Paginator = soup.find("div", { "class":"navigation"})
+    paginationText=''
     currPage = Paginator.find("span", { "class":"page-numbers current"})
-    CurrentPage = int(currPage.string)
+    if currPage:
+        CurrentPage = int(currPage.string)
 
-    for eachPage in Paginator.findAll("a", { "class":"page-numbers"}):
-        if "Next" not in eachPage.contents[0] and "Prev" not in eachPage.contents[0]:
-            lastPage = int(eachPage.string)
-            
-    if (CurrentPage < lastPage):
-        paginationText = "( Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
-    else:
-        paginationText = ""
+        for eachPage in Paginator.findAll("a", { "class":"page-numbers"}):
+            if "Next" not in eachPage.contents[0] and "Prev" not in eachPage.contents[0]:
+                lastPage = int(eachPage.string)
+                
+        if (CurrentPage < lastPage):
+            paginationText = "( Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
+
         
     if 'comedy' in rajTamilurl:
         subUrl = 'rajtamilcomedy'
@@ -279,11 +298,14 @@ def getMovList_rajtamil(rajTamilurl):
         subUrl = 'rajtamilTVshowsVijayTV'
     elif 'sun-tv-show' in rajTamilurl:
         subUrl = 'rajtamilTVshowsSunTV'
+    elif '/?s=' in rajTamilurl:
+        subUrl = 'rajtamilsearch'
     else:
         subUrl = 'rajtamilRecent'
-
+        
     if paginationText:
-        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(int(CurrentPage) + 1) + ',title=Next Page.. ' + paginationText})
+        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
+
     return Dict_movlist
 
 def getMovList_mersal(mersalurl):
@@ -295,28 +317,34 @@ def getMovList_mersal(mersalurl):
     response.close()
     soup = BeautifulSoup(link,'html.parser')
     #xbmc.log(msg='========== soup: ' + (soup.prettify().encode('utf-8')), level=xbmc.LOGNOTICE)
-    lsoup = soup.find(id="wrapper")
+    lsoup = soup.find('div', { 'id':'wrapper' })
     ItemNum = 0
-    Items = lsoup.findAll(class_='col-sm-6 col-md-4 col-lg-4')
+    Items = soup.findAll(class_='col-sm-6 col-md-4 col-lg-4')
     #xbmc.log(msg='========== Items: ' + str(Items), level=xbmc.LOGNOTICE)
     for eachItem in Items:
         ItemNum = ItemNum+1
         movTitle = eachItem.find('img')['title']
         movPage = 'http://mersalaayitten.com' + eachItem.find('a')['href']
-        imgSrc = eachItem.find('img')['data-original']
+        try:
+            imgSrc = eachItem.find('img')['data-original']
+        except:
+            imgSrc = eachItem.find('img')['src']
         Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc+', MovTitle='+movTitle})
 
-    Paginator = lsoup.find("ul", { "class":"pagination pagination-lg"})
-    currPage = Paginator.find("li", { "class":"active"})
-    CurrentPage = int(currPage.span.string)
+    Paginator = soup.find("ul", { "class":"pagination pagination-lg"})
+    paginationText = ''
+    try:
+        currPage = Paginator.find("li", { "class":"active"})
+    except:
+        currPage = ''
+    if currPage:
+        CurrentPage = int(currPage.span.string)
 
-    for eachPage in Paginator.findAll("li", { "class":"hidden-xs"}):
-        lastPage = int(eachPage.a.string)
+        for eachPage in Paginator.findAll("li", { "class":"hidden-xs"}):
+            lastPage = int(eachPage.a.string)
 
-    if (CurrentPage < lastPage):
-        paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
-    else:
-        paginationText = ""
+        if (CurrentPage < lastPage):
+            paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
 
     if 'c=1' in mersalurl:
         subUrl = 'mersal_Tamil'
@@ -330,9 +358,11 @@ def getMovList_mersal(mersalurl):
         subUrl = 'mersal_Animation'
     elif 'c=6' in mersalurl:
         subUrl = 'mersal_Dubbed'
-
+    elif 'search_query=' in mersalurl:
+        subUrl = 'mersal_search'
+        
     if paginationText:
-        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
 
     return Dict_movlist
 
@@ -374,17 +404,17 @@ def getMovList_ftube(ftubeurl):
         Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8')})
 
     Paginator = soup.find(class_='navigation')
+    paginationText=''
     currPage = Paginator.find('span', { 'class':'page-numbers current'})
-    CurrentPage = int(currPage.string)
+    if currPage:
+        CurrentPage = int(currPage.string)
 
-    for eachPage in Paginator.findAll('a'):
-        if "Next" not in eachPage.contents[0] and "Prev" not in eachPage.contents[0]:
-            lastPage = int(eachPage.string)
+        for eachPage in Paginator.findAll('a'):
+            if "Next" not in eachPage.contents[0] and "Prev" not in eachPage.contents[0]:
+                lastPage = int(eachPage.string)
 
-    if (CurrentPage < lastPage):
-        paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
-    else:
-        paginationText = ""
+        if (CurrentPage < lastPage):
+            paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
 
     if '-tamil-' in ftubeurl:
         subUrl = 'ftube_Tamil'
@@ -396,9 +426,11 @@ def getMovList_ftube(ftubeurl):
         subUrl = 'ftube_Dubbed'
     elif 'hindi' in ftubeurl:
         subUrl = 'ftube_Hindi'
-
+    elif '/?s=' in ftubeurl:
+        subUrl = 'ftube_search'
+        
     if paginationText:
-        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
 
     return Dict_movlist
 
@@ -439,9 +471,11 @@ def getMovList_tamilgun(tamilgunurl):
     Paginator = lsoup.find("ul", { "class":"pagination"})
     currPage = Paginator.find("li", { "class":"active"})
     CurrentPage = int(currPage.a.string)
+    lastPage = CurrentPage
     lPage = Paginator.find("li", { "class":"last"})
-    laPage = lPage.find('a')['href']
-    lastPage = re.findall('page/(\\d*)', laPage)[0]
+    if lPage:
+        laPage = lPage.find('a')['href']
+        lastPage = re.findall('page/(\\d*)', laPage)[0]
     
     if (CurrentPage < lastPage):
         paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
@@ -458,11 +492,11 @@ def getMovList_tamilgun(tamilgunurl):
         subUrl = 'tamilguncomedy'
     elif 'trailers' in tamilgunurl:
         subUrl = 'tamilguntrailer'
-    elif 'special-tv' in tamilgunurl:
-        subUrl = 'tamilguntvshow'
+    elif '/?s=' in tamilgunurl:
+        subUrl = 'tamilgunsearch'
         
     if paginationText:
-        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
 
     return Dict_movlist
 
@@ -514,30 +548,35 @@ def getMovList_flinks(flinksurl):
         movTitle = movTitle.replace('Urdu', '')
         movTitle = movTitle.strip()
         #xbmc.log(msg='==========Title: ' + movTitle + '\n========== Item Genre: ' + (asoup.text).encode('utf-8'), level=xbmc.LOGNOTICE)
-        if ('Adult' not in asoup.text):
+        try:
+            Rating = asoup.text
+        except:
+            Rating = ''
+        if ('Adult' not in Rating):
             ItemNum = ItemNum+1
             Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8') })
-        elif ('Adult' in asoup.text) and (SETTINGS_ENABLEADULT == 'true'):
-            ItemNum = ItemNum+1
-            Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8') })
-        elif ('adult' in flinksurl) and (SETTINGS_ENABLEADULT == 'true'):
+        elif SETTINGS_ENABLEADULT == 'true':
             ItemNum = ItemNum+1
             Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8') })
 
     Paginator = lsoup.find("div", { "class":"pagination"})
-    currPage = Paginator.find("li", { "class":"current"})
-    CurrentPage = int(currPage.span.string)
-    for eachPage in Paginator.findAll("a", { "class":"inactive"}):
-        if 'Last' in eachPage.text:
-            laPage = eachPage.get('href')
-            lastPage = re.findall('page/(\\d*)', laPage)[0]
-        elif ('Next' not in eachPage.text) and ('Pre' not in eachPage.text):
-            lastPage = int(eachPage.text)
-    
-    if (CurrentPage < lastPage):
-        paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
-    else:
-        paginationText = ""
+    paginationText = ''
+    try:
+        currPage = Paginator.find("li", { "class":"current"})
+    except:
+        currPage = ''
+            
+    if currPage:
+        CurrentPage = int(currPage.span.string)
+        for eachPage in Paginator.findAll("a", { "class":"inactive"}):
+            if 'Last' in eachPage.text:
+                laPage = eachPage.get('href')
+                lastPage = re.findall('page/(\\d*)', laPage)[0]
+            elif ('Next' not in eachPage.text) and ('Pre' not in eachPage.text):
+                lastPage = int(eachPage.text)
+        
+        if (CurrentPage < lastPage):
+            paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
 
     if 'tamil' in flinksurl:
         subUrl = 'flinkstamil'
@@ -574,14 +613,16 @@ def getMovList_flinks(flinksurl):
     elif 'oriya' in flinksurl:
         subUrl = 'flinksori'
     elif 'punjabi' in flinksurl:
-        subUrl = 'flinkspub'
+        subUrl = 'flinkspun'
     elif 'rajasthani' in flinksurl:
         subUrl = 'flinksraj'
     elif 'urdu' in flinksurl:
         subUrl = 'flinksurdu'
+    elif '/?s=' in flinksurl:
+        subUrl = 'flinkssearch'
         
     if paginationText:
-        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
 
     return Dict_movlist
 
@@ -620,15 +661,20 @@ def getMovList_hlinks(hlinksurl):
             Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8') })
 
     Paginator = soup.find(class_='wp-pagenavi')
-    currPage = Paginator.find('span', { 'class':'current'})
-    CurrentPage = int(currPage.string)
-    lasPage = Paginator.find('span', { 'class':'pages'})
-    lastPage = int(re.findall('of (.*)', lasPage.string)[0])
-    
-    if (CurrentPage < lastPage):
-        paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
-    else:
-        paginationText = ""
+    paginationText = ''
+    try:
+        currPage = Paginator.find('span', { 'class':'current'})
+    except:
+        currPage = ''
+            
+    if currPage:    
+        CurrentPage = int(currPage.string)
+        lasPage = Paginator.find('span', { 'class':'pages'})
+        lastPage = int(re.findall('of (.*)', lasPage.string)[0])
+        
+        if (CurrentPage < lastPage):
+            paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
+
 
     if 'hindi-movies' in hlinksurl:
         subUrl = 'hlinkshindi'
@@ -638,9 +684,11 @@ def getMovList_hlinks(hlinksurl):
         subUrl = 'hlinksadult'
     elif 'documentaries' in hlinksurl:
         subUrl = 'hlinksdocu'
+    elif '/?s=' in hlinksurl:
+        subUrl = 'hlinkssearch'
         
     if paginationText:
-        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
 
     return Dict_movlist
 
@@ -1441,9 +1489,8 @@ def getMovLinksForEachMov(url):
             links = linksDiv.find_all('a')			
             for link in links:
                 vidurl = link.get('href').strip()
-                if 'thiruttuvcd' not in vidurl:
+                if ('magnet' not in vidurl) and ('thiruttuvcd' not in vidurl):
                     hosted_media = urlresolver.HostedMediaFile(vidurl)
-                    #print ' ' + movTitle + ' source found : ' + vidurl + ', hosted_media : ' + str(hosted_media)
                     if urlresolver.HostedMediaFile(vidurl).valid_url():
                         sources.append(hosted_media)
                     else:
@@ -1456,7 +1503,6 @@ def getMovLinksForEachMov(url):
             for link in links:
                 vidurl = link.get("data-lazy-src")
                 hosted_media = urlresolver.HostedMediaFile(vidurl)
-                #print ' ' + movTitle + ' source found : ' + vidurl + ', hosted_media : ' + str(hosted_media)
                 if urlresolver.HostedMediaFile(vidurl).valid_url():
                     sources.append(hosted_media)
                 else:
@@ -1466,7 +1512,9 @@ def getMovLinksForEachMov(url):
 
         sources = urlresolver.filter_source_list(sources)
         for idx, s in enumerate(sources):
-            vidhost = re.findall('//(.*?)/', s.get_url())[0]
+            #xbmc.log(msg='========== vidhost: ' + s.get_url(), level=xbmc.LOGNOTICE)
+            vidhost = s.get_url()
+            vidhost = re.findall('//(.*?)/', vidhost)[0]
             vidhost = re.findall('(?:.*\.|)(.*\..+)', vidhost)[0]
             addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)
 
@@ -1889,368 +1937,395 @@ elif mode == 'GetMovies':
                 print "No Pagination found"
 
     elif ('thiruttuvcd' in subUrl) and ('MP3' not in subUrl):
-            currPage = addon.queries.get('currPage', False)
-            if not currPage:
-                currPage = 1
-            if 'thiruttuvcd_masala' in subUrl:
-                thiruttuvcd_url = 'http://www.thiruttumasala.com/videos?o=mr&page=' + str(currPage)
-            elif 'thiruttuvcd_MalayalamMovs' in subUrl:
-                thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/malayalam/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/ThiruttuVcd/Malayalam'), session, visitor)          
-            elif 'thiruttuvcd_adult' in subUrl:
-                thiruttuvcd_url = 'http://thiruttuvcds.com/private/page/' + str(currPage) + '/'
-            elif 'thiruttuvcd_tamilMovs' in subUrl:
-                #thiruttuvcd_url = 'http://www.thiruttuvcd.me/page/' + str(currPage) + '/'
-                thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/tamil-movies-online/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/ThiruttuVcd/TamilMovies'), session, visitor) 
-            elif 'thiruttuvcd_teluguMovs' in subUrl:
-                thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/watch-telugu-movie/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/ThiruttuVcd/Telugu'), session, visitor) 
-            elif 'thiruttuvcd_hindiMovs' in subUrl:
-                thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/hindi-movies-online/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/ThiruttuVcd/Hindi'), session, visitor) 
-            elif 'thiruttuvcd_tamilSerials' in subUrl:
-                thiruttuvcd_url = 'http://www.thiruttuvcd.me/tv/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/ThiruttuVcd/TamilSerials'), session, visitor) 
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
+        search_text = addon.queries.get('search_text', False)
+        if not search_text:
+            search_text = ''
 
-            #print " subUrl= " + subUrl + " , opening url :" + thiruttuvcd_url
-            cache.delete("%")
-            Dict_res = cache.cacheFunction(getMovList_thiruttuvcd, thiruttuvcd_url)
-            ##print "<<<<<  thiruttuvcd received dict:"
-            #dump(Dict_res)
-            #print " here's the sorted dict now"
-            keylist = Dict_res.keys()
-            keylist.sort()
-            MovTitle_Str=""
-            fanarturl_Str=""
-            fullLink_Str=""
-            mode_Str=""
-            for key, value in Dict_res.iteritems():
-                if 'Paginator' not in value:
-                    SplitValues = value.split(",")
-                    for eachSplitVal in SplitValues:
-                        eachSplitVal = eachSplitVal.encode('utf8')
-                        if 'mode' in eachSplitVal:
-                            mode_Str = eachSplitVal.replace('mode=', '')
-                        elif 'url' in eachSplitVal:
-                            fullLink_Str = eachSplitVal.replace('url=', '')
-                        elif 'imgLink' in eachSplitVal:
-                            fanarturl_Str = eachSplitVal.replace('imgLink=', '')
-                            #fanarturl_Str = BeautifulSoup(html_encoded_string, convertEntities=BeautifulSoup.HTML_ENTITIES)
+        if 'thiruttuvcd_masala' in subUrl:
+            thiruttuvcd_url = 'http://www.thiruttumasala.com/videos?o=mr&page=' + str(currPage)
+        elif 'thiruttuvcd_MalayalamMovs' in subUrl:
+            thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/malayalam/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/ThiruttuVcd/Malayalam'), session, visitor)          
+        elif 'thiruttuvcd_adult' in subUrl:
+            thiruttuvcd_url = 'http://thiruttuvcds.com/private/page/' + str(currPage) + '/'
+        elif 'thiruttuvcd_tamilMovs' in subUrl:
+            thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/tamil-movies-online/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/ThiruttuVcd/TamilMovies'), session, visitor) 
+        elif 'thiruttuvcd_teluguMovs' in subUrl:
+            thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/watch-telugu-movie/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/ThiruttuVcd/Telugu'), session, visitor) 
+        elif 'thiruttuvcd_hindiMovs' in subUrl:
+            thiruttuvcd_url = 'http://www.thiruttuvcd.me/category/hindi-movies-online/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/ThiruttuVcd/Hindi'), session, visitor) 
+        elif 'thiruttuvcd_search' in subUrl:
+            if currPage == 1:
+                search_text = GetSearchQuery('ThiruttuVCD')
+                search_text = search_text.replace(' ', '+')
+            thiruttuvcd_url = 'http://www.thiruttuvcd.me/page/' + str(currPage) + '/?s=' + search_text
 
-                        elif 'MovTitle' in eachSplitVal:
-                            MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()  
-                    if MovTitle_Str:
-                        #mode_Str = mode_Str.encode('utf8')
-                        fanarturl_Str = fanarturl_Str.encode('utf8').strip()
-                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str, 'img':fanarturl_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
-            try:
-                PaginatorVal = Dict_res['Paginator']
-                if PaginatorVal:
-                    SplitValues = PaginatorVal.split(",")
-                    for eachSplitVal in SplitValues:
-                        if 'mode' in eachSplitVal:
-                            mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                        elif 'subUrl' in eachSplitVal:
-                            subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
-                        elif 'currPage' in eachSplitVal:
-                            currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
-                        elif 'title' in eachSplitVal:
-                            title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                    subUrl_Str=str(addon.queries.get('subUrl', False))
-                    addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-                    #print " : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
-            except:
-                print "No Pagination found"
+        cache.delete("%")
+        Dict_res = cache.cacheFunction(getMovList_thiruttuvcd, thiruttuvcd_url)
+        keylist = Dict_res.keys()
+        keylist.sort()
+        MovTitle_Str=""
+        fanarturl_Str=""
+        fullLink_Str=""
+        mode_Str=""
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    if 'mode' in eachSplitVal:
+                        mode_Str = eachSplitVal.replace('mode=', '')
+                    elif 'url' in eachSplitVal:
+                        fullLink_Str = eachSplitVal.replace('url=', '')
+                    elif 'imgLink' in eachSplitVal:
+                        fanarturl_Str = eachSplitVal.replace('imgLink=', '')
+
+                    elif 'MovTitle' in eachSplitVal:
+                        MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()  
+                if MovTitle_Str:
+                    fanarturl_Str = fanarturl_Str.encode('utf8').strip()
+                    addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str, 'img':fanarturl_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                    elif 'search_text' in eachSplitVal:
+                        search_Str = str(eachSplitVal.replace('search_text=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str, 'search_text': search_Str }, {'title': title_Str})                #print " : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
+        except:
+            print "No Pagination found"
 
     elif 'rajtamil' in subUrl:
-            currPage = addon.queries.get('currPage', False)
-            if not currPage:
-                currPage = 1
-            if 'rajtamildubbed' in subUrl:
-                rajTamilurl = 'http://www.rajtamil.com/category/tamil-dubbed/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Rajtamil/TamilDubbed'), session, visitor)
-            elif 'rajtamilcomedy' in subUrl:
-                rajTamilurl = 'http://www.rajtamil.com/category/comedy/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Rajtamil/TamilComedy'), session, visitor)
-            elif 'rajtamilsongs' in subUrl:
-                rajTamilurl = 'http://www.rajtamil.com/category/download-songs/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Rajtamil/TamilSongs'), session, visitor)
-            elif 'rajtamilTVshowsVijayTV' in subUrl:
-                rajTamilurl = 'http://www.rajtamil.com/category/vijay-tv-shows/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Rajtamil/TVshowsVijayTV'), session, visitor)
-            elif 'rajtamilTVshowsSunTV' in subUrl:
-                rajTamilurl = 'http://www.rajtamil.com/category/sun-tv-show/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Rajtamil/TVshowsSunTV'), session, visitor)
-            else:
-                rajTamilurl = 'http://www.rajtamil.com/category/movies/page/' + str(currPage) + '/'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Rajtamil'), session, visitor)
-
-            Dict_res = cache.cacheFunction(getMovList_rajtamil, rajTamilurl)
-           
-            keylist = Dict_res.keys()
-            keylist.sort()
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
+        search_text = addon.queries.get('search_text', False)
+        if not search_text:
+            search_text = ''
             
-            for key, value in Dict_res.iteritems():
-                if 'Paginator' not in value:
-                    SplitValues = value.split(",")
-                    mode_Str=""
-                    fullLink_Str=""
-                    fanarturl_Str=""
-                    MovTitle_Str=""                    
-                    try:
-                        for eachSplitVal in SplitValues:
-                            #eachSplitVal = eachSplitVal.encode('utf8')
-                            if 'mode' in eachSplitVal:
-                                mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                            elif 'url' in eachSplitVal:
-                                fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
-                            elif 'imgLink' in eachSplitVal:
-                                fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
-                            elif 'MovTitle' in eachSplitVal:
-                                MovTitle_Str = str(eachSplitVal.encode('utf8').replace('MovTitle=', '')).strip()
-                    
-                        if MovTitle_Str:
-                            addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
-                    except:
-                        print "No likely exception caught"                        
-            try:
-                PaginatorVal = Dict_res['Paginator']
-                if PaginatorVal:
-                    SplitValues = PaginatorVal.split(",")
+        if 'rajtamildubbed' in subUrl:
+            rajTamilurl = 'http://www.rajtamil.com/category/tamil-dubbed/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Rajtamil/TamilDubbed'), session, visitor)
+        elif 'rajtamilcomedy' in subUrl:
+            rajTamilurl = 'http://www.rajtamil.com/category/comedy/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Rajtamil/TamilComedy'), session, visitor)
+        elif 'rajtamilsongs' in subUrl:
+            rajTamilurl = 'http://www.rajtamil.com/category/download-songs/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Rajtamil/TamilSongs'), session, visitor)
+        elif 'rajtamilTVshowsVijayTV' in subUrl:
+            rajTamilurl = 'http://www.rajtamil.com/category/vijay-tv-shows/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Rajtamil/TVshowsVijayTV'), session, visitor)
+        elif 'rajtamilTVshowsSunTV' in subUrl:
+            rajTamilurl = 'http://www.rajtamil.com/category/sun-tv-show/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Rajtamil/TVshowsSunTV'), session, visitor)
+        elif 'rajtamilsearch' in subUrl:
+            if currPage == 1:
+                search_text = GetSearchQuery('RajTamil')
+                search_text = search_text.replace(' ', '+')
+            rajTamilurl = 'http://www.rajtamil.com/page/' + str(currPage) + '/?s=' + search_text
+        else:
+            rajTamilurl = 'http://www.rajtamil.com/category/movies/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Rajtamil'), session, visitor)
+
+        Dict_res = cache.cacheFunction(getMovList_rajtamil, rajTamilurl)
+       
+        keylist = Dict_res.keys()
+        keylist.sort()
+        
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                mode_Str=""
+                fullLink_Str=""
+                fanarturl_Str=""
+                MovTitle_Str=""                    
+                try:
                     for eachSplitVal in SplitValues:
-                        eachSplitVal = eachSplitVal.encode('utf8')
+                        #eachSplitVal = eachSplitVal.encode('utf8')
                         if 'mode' in eachSplitVal:
                             mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                        elif 'currPage' in eachSplitVal:
-                            currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
-                        elif 'subUrl' in eachSplitVal:
-                            subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
-                        elif 'title' in eachSplitVal:
-                            title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                    #print " SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
-                    addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-            except:
-                print "No Pagination found"
+                        elif 'url' in eachSplitVal:
+                            fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                        elif 'imgLink' in eachSplitVal:
+                            fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                        elif 'MovTitle' in eachSplitVal:
+                            MovTitle_Str = str(eachSplitVal.encode('utf8').replace('MovTitle=', '')).strip()
+                
+                    if MovTitle_Str:
+                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+                except:
+                    print "No likely exception caught"                        
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                    elif 'search_text' in eachSplitVal:
+                        search_Str = str(eachSplitVal.replace('search_text=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str, 'search_text': search_Str }, {'title': title_Str})
+
+        except:
+            print "No Pagination found"
 
     elif 'tamilgun' in subUrl:
-            currPage = addon.queries.get('currPage', False)
-            if not currPage:
-                currPage = 1
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
+        search_text = addon.queries.get('search_text', False)
+        if not search_text:
+            search_text = ''
 
-            if 'tamilgunnew' in subUrl:
-                tamilgunurl = 'http://tamilgun.com/categories/new-movies/page/' + str(currPage) + '/?order=latest'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/TamilGun/NewMovies'), session, visitor)
-            elif 'tamilgundubbed' in subUrl:
-                tamilgunurl = 'http://tamilgun.com/categories/dubbed-movies/page/' + str(currPage) + '/?order=latest'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/TamilGun/TamilDubbed'), session, visitor)
-            elif 'tamilgunhd' in subUrl:
-                tamilgunurl = 'http://tamilgun.com/categories/hd-movies/page/' + str(currPage) + '/?order=latest'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/TamilGun/HDMovies'), session, visitor)
-            elif 'tamilguncomedy' in subUrl:
-                tamilgunurl = 'http://tamilgun.com/categories/hd-comedys/page/' + str(currPage) + '/?order=latest'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/TamilGun/Comedy'), session, visitor)
-            elif 'tamilguntrailer' in subUrl:
-                tamilgunurl = 'http://tamilgun.com/categories/trailers/page/' + str(currPage) + '/?order=latest'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/TamilGun/Trailers'), session, visitor)
-            elif 'tamilguntvshow' in subUrl:
-                tamilgunurl = 'http://tamilgun.com/categories/special-tv-shows/page/' + str(currPage) + '/?order=latest'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/TamilGun/TVShow'), session, visitor)
+        if 'tamilgunnew' in subUrl:
+            tamilgunurl = 'http://tamilgun.com/categories/new-movies/page/' + str(currPage) + '/?order=latest'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/TamilGun/NewMovies'), session, visitor)
+        elif 'tamilgundubbed' in subUrl:
+            tamilgunurl = 'http://tamilgun.com/categories/dubbed-movies/page/' + str(currPage) + '/?order=latest'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/TamilGun/TamilDubbed'), session, visitor)
+        elif 'tamilgunhd' in subUrl:
+            tamilgunurl = 'http://tamilgun.com/categories/hd-movies/page/' + str(currPage) + '/?order=latest'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/TamilGun/HDMovies'), session, visitor)
+        elif 'tamilguncomedy' in subUrl:
+            tamilgunurl = 'http://tamilgun.com/categories/hd-comedys/page/' + str(currPage) + '/?order=latest'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/TamilGun/Comedy'), session, visitor)
+        elif 'tamilguntrailer' in subUrl:
+            tamilgunurl = 'http://tamilgun.com/categories/trailers/page/' + str(currPage) + '/?order=latest'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/TamilGun/Trailers'), session, visitor)
+        elif 'tamilgunsearch' in subUrl:
+            if currPage == 1:
+                search_text = GetSearchQuery('TamilGun')
+                search_text = search_text.replace(' ', '+')
+            tamilgunurl = 'http://tamilgun.com/page/' + str(currPage) + '/?s=' + search_text
 
-            Dict_res = cache.cacheFunction(getMovList_tamilgun, tamilgunurl)
+        Dict_res = cache.cacheFunction(getMovList_tamilgun, tamilgunurl)
 
-            keylist = Dict_res.keys()
-            keylist.sort()
-            MovTitle_Str=""    
-            fanarturl_Str=""
-            
-            for key, value in Dict_res.iteritems():
-                if 'Paginator' not in value:
-                    SplitValues = value.split(",")
-                    try:
-                        for eachSplitVal in SplitValues:
-                            eachSplitVal = eachSplitVal.encode('utf8')
-                            if 'mode' in eachSplitVal:
-                                mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                            elif 'url' in eachSplitVal:
-                                fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
-                            elif 'imgLink' in eachSplitVal:
-                                fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
-                            elif 'MovTitle' in eachSplitVal:
-                                MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()
-                    
-                        if MovTitle_Str:
-                            addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
-                    except:
-                        print "No likely exception caught"                        
-            try:
-                PaginatorVal = Dict_res['Paginator']
-                if PaginatorVal:
-                    SplitValues = PaginatorVal.split(",")
+        keylist = Dict_res.keys()
+        keylist.sort()
+        MovTitle_Str=""    
+        fanarturl_Str=""
+        
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                try:
                     for eachSplitVal in SplitValues:
                         eachSplitVal = eachSplitVal.encode('utf8')
                         if 'mode' in eachSplitVal:
                             mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                        elif 'currPage' in eachSplitVal:
-                            currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
-                        elif 'subUrl' in eachSplitVal:
-                            subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
-                        elif 'title' in eachSplitVal:
-                            title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                    #print " SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
-                    addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-            except:
-                print "No Pagination found"
+                        elif 'url' in eachSplitVal:
+                            fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                        elif 'imgLink' in eachSplitVal:
+                            fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                        elif 'MovTitle' in eachSplitVal:
+                            MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()
+                
+                    if MovTitle_Str:
+                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+                except:
+                    print "No likely exception caught"                        
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                    elif 'search_text' in eachSplitVal:
+                        search_Str = str(eachSplitVal.replace('search_text=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str, 'search_text': search_Str }, {'title': title_Str})
+        except:
+            print "No Pagination found"
 
     elif 'flinks' in subUrl:
-            currPage = addon.queries.get('currPage', False)
-            if not currPage:
-                currPage = 1
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
+        search_text = addon.queries.get('search_text', False)
+        if not search_text:
+            search_text = ''
 
-            if 'flinkstamil' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/tamil/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Tamil'), session, visitor)
-            elif 'flinksmalayalam' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/malayalam/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Malayalam'), session, visitor)
-            elif 'flinkstelugu' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/telugu/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Telugu'), session, visitor)
-            elif 'flinkshindisc' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/adult-hindi-short-films/page/' + str(currPage) + '?orderby=date'
-            elif 'flinkshindi' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/hindi/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Hindi'), session, visitor)
-            elif 'flinkskannada' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/kannada/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Kannada'), session, visitor)
-            elif 'flinksadult' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/adult/page/' + str(currPage) + '?orderby=date'
-            elif 'flinksani' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/animation/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Animation'), session, visitor)
-            elif 'flinksholly' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/hollywood/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Hollywood'), session, visitor)
-            elif 'flinksben' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/bengali/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Bengali'), session, visitor)
-            elif 'flinksbhoj' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/bhojpuri/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Bhojpuri'), session, visitor)
-            elif 'flinksbio' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/biography/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Biography'), session, visitor)
-            elif 'flinksdocu' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/documentary/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Documentary'), session, visitor)
-            elif 'flinksguj' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/gujarati/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Gujarati'), session, visitor)
-            elif 'flinksmar' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/marathi/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Marathi'), session, visitor)
-            elif 'flinksnep' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/others/nepali/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Nepali'), session, visitor)
-            elif 'flinksori' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/others/oriya/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Oriya'), session, visitor)
-            elif 'flinkspun' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/punjabi/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Punjabi'), session, visitor)
-            elif 'flinksraj' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/others/rajasthani/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Rajasthani'), session, visitor)
-            elif 'flinksurdu' in subUrl:
-                flinksurl = 'http://www.filmlinks4u.to/category/others/urdu/page/' + str(currPage) + '?orderby=date'
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/FilmLinks4U/Urdu'), session, visitor)
-                    
-            Dict_res = cache.cacheFunction(getMovList_flinks, flinksurl)
-
-            keylist = Dict_res.keys()
-            keylist.sort()
-            MovTitle_Str=""    
-            fanarturl_Str=""
+        if 'flinkstamil' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/tamil/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Tamil'), session, visitor)
+        elif 'flinksmalayalam' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/malayalam/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Malayalam'), session, visitor)
+        elif 'flinkstelugu' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/telugu/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Telugu'), session, visitor)
+        elif 'flinkshindisc' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/adult-hindi-short-films/page/' + str(currPage) + '?orderby=date'
+        elif 'flinkshindi' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/hindi/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Hindi'), session, visitor)
+        elif 'flinkskannada' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/kannada/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Kannada'), session, visitor)
+        elif 'flinksadult' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/adult/page/' + str(currPage) + '?orderby=date'
+        elif 'flinksani' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/animation/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Animation'), session, visitor)
+        elif 'flinksholly' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/hollywood/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Hollywood'), session, visitor)
+        elif 'flinksben' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/bengali/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Bengali'), session, visitor)
+        elif 'flinksbhoj' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/bhojpuri/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Bhojpuri'), session, visitor)
+        elif 'flinksbio' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/biography/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Biography'), session, visitor)
+        elif 'flinksdocu' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/documentary/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Documentary'), session, visitor)
+        elif 'flinksguj' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/gujarati/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Gujarati'), session, visitor)
+        elif 'flinksmar' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/marathi/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Marathi'), session, visitor)
+        elif 'flinksnep' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/others/nepali/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Nepali'), session, visitor)
+        elif 'flinksori' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/others/oriya/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Oriya'), session, visitor)
+        elif 'flinkspun' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/punjabi/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Punjabi'), session, visitor)
+        elif 'flinksraj' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/others/rajasthani/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Rajasthani'), session, visitor)
+        elif 'flinksurdu' in subUrl:
+            flinksurl = 'http://www.filmlinks4u.to/category/others/urdu/page/' + str(currPage) + '?orderby=date'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/FilmLinks4U/Urdu'), session, visitor)
+        elif 'flinkssearch' in subUrl:
+            if currPage == 1:
+                search_text = GetSearchQuery('FilmLinks4U')
+                search_text = search_text.replace(' ', '+')
+            flinksurl = 'http://www.filmlinks4u.to/page/' + str(currPage) + '/?s=' + search_text
             
-            for key, value in Dict_res.iteritems():
-                if 'Paginator' not in value:
-                    SplitValues = value.split(",")
-                    try:
-                        for eachSplitVal in SplitValues:
-                            eachSplitVal = eachSplitVal.encode('utf8')
-                            if 'mode' in eachSplitVal:
-                                mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                            elif 'url' in eachSplitVal:
-                                fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
-                            elif 'imgLink' in eachSplitVal:
-                                fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
-                            elif 'MovTitle' in eachSplitVal:
-                                MovTitle_Str = str(eachSplitVal.encode('utf8').replace('MovTitle=', '')).strip()
-                    
-                        if MovTitle_Str:
-                            addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
-                    except:
-                        print "No likely exception caught"                        
-            try:
-                PaginatorVal = Dict_res['Paginator']
-                if PaginatorVal:
-                    SplitValues = PaginatorVal.split(",")
+        Dict_res = cache.cacheFunction(getMovList_flinks, flinksurl)
+
+        keylist = Dict_res.keys()
+        keylist.sort()
+        MovTitle_Str=""    
+        fanarturl_Str=""
+        
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                try:
                     for eachSplitVal in SplitValues:
                         eachSplitVal = eachSplitVal.encode('utf8')
                         if 'mode' in eachSplitVal:
                             mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                        elif 'currPage' in eachSplitVal:
-                            currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
-                        elif 'subUrl' in eachSplitVal:
-                            subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
-                        elif 'title' in eachSplitVal:
-                            title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                    #print " SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
-                    addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-            except:
-                print "No Pagination found"
+                        elif 'url' in eachSplitVal:
+                            fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                        elif 'imgLink' in eachSplitVal:
+                            fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                        elif 'MovTitle' in eachSplitVal:
+                            MovTitle_Str = str(eachSplitVal.encode('utf8').replace('MovTitle=', '')).strip()
+                
+                    if MovTitle_Str:
+                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+                except:
+                    print "No likely exception caught"                        
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                    elif 'search_text' in eachSplitVal:
+                        search_Str = str(eachSplitVal.replace('search_text=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str, 'search_text': search_Str }, {'title': title_Str})
+
+        except:
+            print "No Pagination found"
 
     elif 'hlinks' in subUrl:
         currPage = addon.queries.get('currPage', False)
         if not currPage:
             currPage = 1
-
+        search_text = addon.queries.get('search_text', False)
+        if not search_text:
+            search_text = ''
+            
         if 'hlinkshindi' in subUrl:
             hlinksurl = 'http://www.hindilinks4u.to/category/hindi-movies/page/' + str(currPage) + '?orderby=date'
             if ALLOW_HIT_CTR == 'true':
@@ -2265,7 +2340,12 @@ elif mode == 'GetMovies':
             hlinksurl = 'http://www.hindilinks4u.to/category/documentaries/page/' + str(currPage) + '?orderby=date'
             if ALLOW_HIT_CTR == 'true':
                 tracker.track_pageview(Page('/HindiLinks4U/Documentary'), session, visitor)
-                
+        elif 'hlinkssearch' in subUrl:
+            if currPage == 1:
+                search_text = GetSearchQuery('HindiLinks4U')
+                search_text = search_text.replace(' ', '+')
+            hlinksurl = 'http://www.hindilinks4u.to/page/' + str(currPage) + '/?s=' + search_text
+            
         Dict_res = cache.cacheFunction(getMovList_hlinks, hlinksurl)
 
         keylist = Dict_res.keys()
@@ -2306,89 +2386,105 @@ elif mode == 'GetMovies':
                         subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
                     elif 'title' in eachSplitVal:
                         title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
+                    elif 'search_text' in eachSplitVal:
+                        search_Str = str(eachSplitVal.replace('search_text=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str, 'search_text': search_Str }, {'title': title_Str})
         except:
             print "No Pagination found"
 
     elif 'mersal' in subUrl:
-            currPage = addon.queries.get('currPage', False)
-            if not currPage:
-                currPage = 1
-            if 'mersal_Tamil' in subUrl:
-                mersalurl = 'http://mersalaayitten.com/videos?c=1&o=mr&page=' + str(currPage)
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Mersal/Tamil'), session, visitor)
-            elif 'mersal_Telugu' in subUrl:
-                mersalurl = 'http://mersalaayitten.com/videos?c=3&o=mr&page=' + str(currPage)
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Mersal/Telugu'), session, visitor)
-            elif 'mersal_Hindi' in subUrl:
-                mersalurl = 'http://mersalaayitten.com/videos?c=2&o=mr&page=' + str(currPage)
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Mersal/Hindi'), session, visitor)
-            elif 'mersal_Malayalam' in subUrl:
-                mersalurl = 'http://mersalaayitten.com/videos?c=4&o=mr&page=' + str(currPage)
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Mersal/Malayalam'), session, visitor)
-            elif 'mersal_Dubbed' in subUrl:
-                mersalurl = 'http://mersalaayitten.com/videos?c=6&o=mr&page=' + str(currPage)
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Mersal/Dubbed'), session, visitor)
-            elif 'mersal_Animation' in subUrl:
-                mersalurl = 'http://mersalaayitten.com/videos?c=5&o=mr&page=' + str(currPage)
-                if ALLOW_HIT_CTR == 'true':
-                    tracker.track_pageview(Page('/Mersal/Animation'), session, visitor)
-
-            #print " subUrl= " + subUrl + " , opening url :" + mersalurl
-            Dict_res = cache.cacheFunction(getMovList_mersal, mersalurl)
-
-            keylist = Dict_res.keys()
-            keylist.sort()
-            MovTitle_Str=""    
-            fanarturl_Str=""
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
+        search_text = addon.queries.get('search_text', False)
+        if not search_text:
+            search_text = ''
             
-            for key, value in Dict_res.iteritems():
-                if 'Paginator' not in value:
-                    SplitValues = value.split(",")
-                    try:
-                        for eachSplitVal in SplitValues:
-                            eachSplitVal = eachSplitVal.encode('utf8')
-                            if 'mode' in eachSplitVal:
-                                mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                            elif 'url' in eachSplitVal:
-                                fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
-                            elif 'imgLink' in eachSplitVal:
-                                fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
-                            elif 'MovTitle' in eachSplitVal:
-                                MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()
-                    
-                        if MovTitle_Str:
-                            addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
-                    except:
-                        print "No likely exception caught"                        
-            try:
-                PaginatorVal = Dict_res['Paginator']
-                if PaginatorVal:
-                    SplitValues = PaginatorVal.split(",")
+        if 'mersal_Tamil' in subUrl:
+            mersalurl = 'http://mersalaayitten.com/videos?c=1&o=mr&page=' + str(currPage)
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Mersal/Tamil'), session, visitor)
+        elif 'mersal_Telugu' in subUrl:
+            mersalurl = 'http://mersalaayitten.com/videos?c=3&o=mr&page=' + str(currPage)
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Mersal/Telugu'), session, visitor)
+        elif 'mersal_Hindi' in subUrl:
+            mersalurl = 'http://mersalaayitten.com/videos?c=2&o=mr&page=' + str(currPage)
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Mersal/Hindi'), session, visitor)
+        elif 'mersal_Malayalam' in subUrl:
+            mersalurl = 'http://mersalaayitten.com/videos?c=4&o=mr&page=' + str(currPage)
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Mersal/Malayalam'), session, visitor)
+        elif 'mersal_Dubbed' in subUrl:
+            mersalurl = 'http://mersalaayitten.com/videos?c=6&o=mr&page=' + str(currPage)
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Mersal/Dubbed'), session, visitor)
+        elif 'mersal_Animation' in subUrl:
+            mersalurl = 'http://mersalaayitten.com/videos?c=5&o=mr&page=' + str(currPage)
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Mersal/Animation'), session, visitor)
+        elif 'mersal_search' in subUrl:
+            if currPage == 1:
+                search_text = GetSearchQuery('Mersalaayitten')
+                search_text = search_text.replace(' ', '+')
+            mersalurl = 'http://mersalaayitten.com/search?search_type=videos&search_query=' + search_text + '&page=' + str(currPage)
+
+        Dict_res = cache.cacheFunction(getMovList_mersal, mersalurl)
+
+        keylist = Dict_res.keys()
+        keylist.sort()
+        MovTitle_Str=""    
+        fanarturl_Str=""
+        
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                try:
                     for eachSplitVal in SplitValues:
                         eachSplitVal = eachSplitVal.encode('utf8')
                         if 'mode' in eachSplitVal:
                             mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                        elif 'currPage' in eachSplitVal:
-                            currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
-                        elif 'subUrl' in eachSplitVal:
-                            subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
-                        elif 'title' in eachSplitVal:
-                            title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                    #print " SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
-                    addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-            except:
-                print "No Pagination found"
+                        elif 'url' in eachSplitVal:
+                            fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                        elif 'imgLink' in eachSplitVal:
+                            fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                        elif 'MovTitle' in eachSplitVal:
+                            MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()
+                
+                    if MovTitle_Str:
+                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+                except:
+                    print "No likely exception caught"                        
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                    elif 'search_text' in eachSplitVal:
+                        search_Str = str(eachSplitVal.replace('search_text=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str, 'search_text': search_Str }, {'title': title_Str})
+
+        except:
+            print "No Pagination found"
 
     elif 'ftube' in subUrl:
         currPage = addon.queries.get('currPage', False)
         if not currPage:
             currPage = 1
+        search_text = addon.queries.get('search_text', False)
+        if not search_text:
+            search_text = ''
+            
         if 'ftube_Tamil' in subUrl:
             ftubeurl = 'http://firsttube.co/category/latest-tamil-movie/page/' + str(currPage) + '/'
             if ALLOW_HIT_CTR == 'true':
@@ -2409,7 +2505,12 @@ elif mode == 'GetMovies':
             ftubeurl = 'http://firsttube.co/category/latest-punjabi-movie/page/' + str(currPage) + '/'
             if ALLOW_HIT_CTR == 'true':
                 tracker.track_pageview(Page('/FirstTube/Punjabi'), session, visitor)
-
+        elif 'ftube_search' in subUrl:
+            if currPage == 1:
+                search_text = GetSearchQuery('FirstTube')
+                search_text = search_text.replace(' ', '+')
+            ftubeurl = 'http://firsttube.co/page/' + str(currPage) + '/?s=' + search_text
+            
         Dict_res = cache.cacheFunction(getMovList_ftube, ftubeurl)
 
         keylist = Dict_res.keys()
@@ -2450,8 +2551,10 @@ elif mode == 'GetMovies':
                         subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
                     elif 'title' in eachSplitVal:
                         title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                #print " SETTING FOR NEXT LINK: " + mode_Str + ', ' + currPage_Str + ', ' + title_Str
-                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
+                    elif 'search_text' in eachSplitVal:
+                        search_Str = str(eachSplitVal.replace('search_text=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str, 'search_text': search_Str }, {'title': title_Str})
+
         except:
             print "No Pagination found"
                 
@@ -2480,6 +2583,7 @@ elif mode == 'rajTamil':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilsongs'}, {'title': 'Tamil Movie Songs'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsSunTV'}, {'title': 'TV Shows - Sun TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsVijayTV'}, {'title': 'TV Shows - Vijay TV'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilsearch'}, {'title': 'Search'})
 
 elif mode == 'tamilgun':
     if ALLOW_HIT_CTR == 'true':
@@ -2489,14 +2593,14 @@ elif mode == 'tamilgun':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilgundubbed'}, {'title': 'Tamil Dubbed Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilguncomedy'}, {'title': 'Tamil Movie Comedy Scenes'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilguntrailer'}, {'title': 'Tamil Movie Trailers'})
-    #addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilguntvshow'}, {'title': 'Tamil TV Shows'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilgunsearch'}, {'title': 'Search'})
 
 elif mode == 'flinks':
     if ALLOW_HIT_CTR == 'true':
         tracker.track_pageview(Page('/FilmLinks4U'), session, visitor)
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkstamil'}, {'title': 'Tamil Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinksmalayalam'}, {'title': 'Malayalam Movies'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkstelugu'}, {'title': 'Telegu Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkstelugu'}, {'title': 'Telugu Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkshindi'}, {'title': 'Hindi Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkskannada'}, {'title': 'Kannada Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinksani'}, {'title': 'Animation Movies'})
@@ -2514,8 +2618,8 @@ elif mode == 'flinks':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinksurdu'}, {'title': 'Urdu Movies'})
     if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinksadult'}, {'title': 'Adult Movies'})
-    if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkshindisc'}, {'title': 'Hindi Softcore'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkssearch'}, {'title': 'Search'})
 
 elif mode == 'hlinks':
     if ALLOW_HIT_CTR == 'true':
@@ -2525,6 +2629,7 @@ elif mode == 'hlinks':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'hlinksdocu'}, {'title': 'Documentary Movies'})
     if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'hlinksadult'}, {'title': 'Adult Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'hlinkssearch'}, {'title': 'Search'})
 
 elif mode == 'thiruttuvcd':
     if ALLOW_HIT_CTR == 'true':
@@ -2533,9 +2638,9 @@ elif mode == 'thiruttuvcd':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_tamilMovs'}, {'title': 'Tamil Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_teluguMovs'}, {'title': 'Telugu Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_hindiMovs'}, {'title': 'Hindi Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_search'}, {'title': 'Search'})
     if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_adult'}, {'title': 'Adult Movies'})
-    if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_masala'}, {'title': 'Thiruttu Masala'})
 
 elif mode == 'mersal':
@@ -2547,6 +2652,7 @@ elif mode == 'mersal':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'mersal_Malayalam'}, {'title': 'Malayalam Movies'})  
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'mersal_Dubbed'}, {'title': 'Dubbed Movies'})    
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'mersal_Animation'}, {'title': 'Animation Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'mersal_search'}, {'title': 'Search'})
 
 elif mode == 'ftube':
     if ALLOW_HIT_CTR == 'true':
@@ -2556,6 +2662,7 @@ elif mode == 'ftube':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ftube_Hindi'}, {'title': 'Hindi Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ftube_Dubbed'}, {'title': 'Hindi Dubbed Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ftube_Punjabi'}, {'title': 'Punjabi Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ftube_search'}, {'title': 'Search'})
 
 elif mode == 'main':
         addon.add_directory({'mode': 'abcmalayalam'}, {'title': 'ABCMalayalam : Malayalam'})
