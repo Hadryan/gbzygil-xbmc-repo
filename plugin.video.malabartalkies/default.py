@@ -84,13 +84,17 @@ def GetSearchQuery(sitename):
     return search_text
 
 def getMovList_thiruttuvcd(thiruttuvcd_url):
-    #print "================ checking cache hit : function getMovList_thiruttuvcd was called"
+
     Dict_movlist = {}
 
     if 'thiruttumasala' in thiruttuvcd_url:
         url = thiruttuvcd_url
         subUrl = 'thiruttuvcd_masala'
-        link = net.http_GET(url).content
+        req = urllib2.Request(url)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
+        response = urllib2.urlopen(req)
+        link=response.read()
+        response.close()        
         base_url = 'http://www.thiruttumasala.com'
         soup = BeautifulSoup(link)
         ItemNum=0
@@ -104,21 +108,19 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
             movTitle = eachItem.find('img')['alt']
             Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + base_url + link + ', imgLink=' + base_url + img+', MovTitle='+movTitle})
 
-        Paginator = soup.find('div', { 'class':'pagination'})
-        currPage = Paginator.find('span', { 'class':'currentpage'})
+        Paginator = soup.find(class_='pagination')
+        currPage = Paginator.find('span', { 'class':'currentpage' })
         CurrentPage = int(currPage.string)
-
+        paginationText = ''
         for eachPage in Paginator.findAll('a'):
             if ('Next' not in eachPage.contents[0]) and ('Prev' not in eachPage.contents[0]):
                 lastPage = int(eachPage.string)
-                
+               
         if (CurrentPage < lastPage):
             paginationText = '(Currently in Page ' + str(CurrentPage) + ' of ' + str(lastPage) + ')\n'
-        else:
-            paginationText = ''
-            
+    
         if paginationText:
-            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
 
     elif '/private/' in thiruttuvcd_url:
         url = thiruttuvcd_url
@@ -159,14 +161,13 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
 
         CurrentPage = int(re.findall("class='current'>(.*?)<", link)[0])
         lastPage = int(re.findall("class='pages'>.*?of (.*?)<", link)[0])
+        paginationText = ''
 
         if (CurrentPage < lastPage):
             paginationText = '(Currently in Page ' + str(CurrentPage) + ' of ' + str(lastPage) + ')\n'
-        else:
-            paginationText = ''
             
         if paginationText:
-            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText})
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
 
     else:
         url = thiruttuvcd_url
@@ -223,7 +224,7 @@ def getMovList_thiruttuvcd(thiruttuvcd_url):
             subUrl = 'thiruttuvcd_search'
             
         if paginationText:
-            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})            
+            Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
         
     return Dict_movlist
 
@@ -428,6 +429,88 @@ def getMovList_ftube(ftubeurl):
         subUrl = 'ftube_Hindi'
     elif '/?s=' in ftubeurl:
         subUrl = 'ftube_search'
+        
+    if paginationText:
+        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
+
+    return Dict_movlist
+
+def getMovList_rmovies(rmoviesurl):
+    Dict_movlist = {}
+    req = urllib2.Request(rmoviesurl)
+    req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
+    response = urllib2.urlopen(req)
+    link=response.read()
+    response.close()
+    soup = BeautifulSoup(link)
+    #xbmc.log(msg='========== soup: ' + (soup.prettify().encode('utf-8')), level=xbmc.LOGNOTICE)
+    lsoup = soup.find(id="content")
+    ItemNum = 0
+    hyph = u'\u2013'.encode('utf8')
+    Items = lsoup.find_all(lambda tag: tag.has_attr('id'))
+    #xbmc.log(msg='========== Items: ' + str(Items), level=xbmc.LOGNOTICE)
+    for eachItem in Items:
+        ItemNum = ItemNum+1
+        movsec = eachItem.find(class_='thumb')
+        movPage = movsec.find('a')['href']
+        imgSrc = movsec.find('img')['src']
+        movTitle = (movsec.find('a')['title']).encode('utf8')
+        movTitle = movTitle.replace(hyph, '')
+        movTitle = movTitle.replace('Watch', '')
+        movTitle = movTitle.replace('Tamil', '')
+        movTitle = movTitle.replace('Telugu', '')
+        movTitle = movTitle.replace('Malayalam', '')
+        movTitle = movTitle.replace('Kannada', '')
+        movTitle = movTitle.replace('Pakistani', '')
+        movTitle = movTitle.replace('Hindi', '')
+        movTitle = movTitle.replace(' English', '')
+        movTitle = movTitle.replace(' HD', '')
+        movTitle = movTitle.replace('Movie', '')
+        movTitle = movTitle.replace('Online', '')
+        movTitle = movTitle.replace('movie', '')
+        movTitle = movTitle.replace('online', '')
+        movTitle = movTitle.replace('Download', '')
+        movTitle = movTitle.replace('Full', '')
+        movTitle = movTitle.replace('Punjabi', '')
+        movTitle = movTitle.replace('Watch', '')
+        movTitle = movTitle.replace('Free', '')
+        movTitle = movTitle.replace('Dubbed', '')
+        movTitle = movTitle.strip()
+        Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + movPage + ', imgLink=' + imgSrc + ', MovTitle=' + movTitle.decode('utf8')})
+
+    paginationText=''
+    currPage = re.search("class='current'>(.*?)<", link)
+    if currPage:
+        CurrentPage = int(currPage.group(1))
+        lastPage = int(re.findall("class='pages'>.*?of (.*?)<", link)[0])
+
+        if (CurrentPage < lastPage):
+            paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
+
+    if '/tamil' in rmoviesurl:
+        subUrl = 'rmovies_Tamil'
+    elif '/telugu' in rmoviesurl:
+        subUrl = 'rmovies_Telugu'
+    elif '/malayalam' in rmoviesurl:
+        subUrl = 'rmovies_Malayalam'
+    elif '/kannada' in rmoviesurl:
+        subUrl = 'rmovies_Kannada'
+    elif '/punjabi' in rmoviesurl:
+        subUrl = 'rmovies_Punjabi'
+    elif '/dubbed' in rmoviesurl:
+        subUrl = 'rmovies_Dubbed'
+    elif '/bollywood' in rmoviesurl:
+        subUrl = 'rmovies_Hindi'
+    elif '/hollywood' in rmoviesurl:
+        subUrl = 'rmovies_English'
+    elif '/animation' in rmoviesurl:
+        subUrl = 'rmovies_Animated'
+    elif '/pakistan' in rmoviesurl:
+        subUrl = 'rmovies_Urdu'
+    elif '/adult' in rmoviesurl:
+        subUrl = 'rmovies_Adult'
+    elif '/?s=' in rmoviesurl:
+        subUrl = 'rmovies_search'
         
     if paginationText:
         Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
@@ -693,10 +776,8 @@ def getMovList_hlinks(hlinksurl):
     return Dict_movlist
 
 def getMovList_olangal(olangalurl):
-    #print "================ checking cache hit : function getMovList_olangal was called"
     Dict_movlist = {}
-#            link = net.http_GET(olangalurl).content
-#            soup = BeautifulSoup(link, 'html5lib')
+
     req = urllib2.Request(olangalurl)
     req.add_header('User-Agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-GB; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3')
     response = urllib2.urlopen(req)
@@ -704,32 +785,34 @@ def getMovList_olangal(olangalurl):
     response.close()
     soup = BeautifulSoup(link)
 
-    for Paginator in soup.findAll("div", { "class":"paginado"}):
-        currPage = Paginator.find("a", { "class":"current"})
-        CurrentPage = str(currPage.contents[0].strip())
-
+    Paginator = soup.find(class_='paginado')
+    paginationText = ''
+    try:
+        currPage = Paginator.find('a', { 'class':'current' })
+    except:
+        currPage = ''
+            
+    if currPage:    
+        CurrentPage = int(currPage.contents[0].strip())
+        lastPage = 1
         for eachPage in Paginator.findAll("a", { "class":"page larger"}):
             if "Next" not in eachPage.contents[0]:
-                lastPage = eachPage.contents[0].strip()
-
-    if (CurrentPage < lastPage):
-        paginationText = "( Currently in Page " + CurrentPage + " of " + lastPage + ")\n"
-    else:
-        paginationText = ""
+                lastPage = int(eachPage.contents[0].strip())
+        
+        if (CurrentPage < lastPage):
+            paginationText = "(Currently in Page " + str(CurrentPage) + " of " + str(lastPage) + ")\n"
         
     ItemNum=0
     isoup = soup.find("div", { "class":"item_1 items"})
     for eachItem in isoup.findAll("div", { "class":"item"}):
-         ItemNum=ItemNum+1
-         imgfullLink = eachItem.find('img')['src']
-         fullLink = eachItem.find('a')['href']
-         names = eachItem.find('img')['alt'].encode('utf8')
-         #.encode('ascii',errors='ignore') Without this fails on olangal page 4 "Love 24x7" with utf char in title
-         Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + fullLink + ', imgLink=' + imgfullLink.strip()+', MovTitle='+names.decode('utf8')})
-         #print " : Adding to cache dictionary :"+names+", mode=individualmovie, url=" + fullLink
-#             addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent', 'currPage': int(currPage) + 1 }, {'title': 'Next Page.. ' + paginationText})
+        ItemNum=ItemNum+1
+        imgfullLink = eachItem.find('img')['src']
+        fullLink = eachItem.find('a')['href']
+        names = eachItem.find('img')['alt'].encode('utf8')
+        Dict_movlist.update({ItemNum:'mode=individualmovie, url=' + fullLink + ', imgLink=' + imgfullLink.strip()+', MovTitle='+names.decode('utf8')})
     if paginationText:
-        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=olangalMovies-Recent, currPage=' + str(int(CurrentPage) + 1) + ',title=Next Page.. ' + paginationText+', Order='+str(ItemNum)})
+        #Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=olangalMovies-Recent, currPage=' + str(int(CurrentPage) + 1) + ',title=Next Page.. ' + paginationText+', Order='+str(ItemNum)})
+        Dict_movlist.update({'Paginator':'mode=GetMovies, subUrl=' + subUrl + ', currPage=' + str(CurrentPage + 1) + ',title=Next Page.. ' + paginationText + ',search_text=' + search_text})
     return Dict_movlist
 
 def getMovList_ABCmal(abcmalUrl):
@@ -1019,6 +1102,37 @@ def getMovLinksForEachMov(url):
         except:
             print "no embedded urls found using a method"
 
+            
+        for idx, s in enumerate(sources):
+            if s.get_media_id():
+                if s.get_host():
+                    addon.add_video_item({'url':s.get_url(), 'img':fanarturl, 'title': movTitle, 'AddtoHist':True}, {'title': s.get_host() + ' (' + s.get_media_id() + ')'}, img=fanarturl)
+            else:
+                vidhost = re.findall('//(.*?)/', s.get_url())[0]
+                vidhost = re.findall('(?:.*\.|)(.*\..+)', vidhost)[0]
+                addon.add_video_item({'url': s.get_url()},{'title': vidhost},img=fanarturl,fanart=fanarturl)
+
+    elif 'redmovies.me' in url:
+        url = addon.queries.get('url', False)
+        movTitle = str(addon.queries.get('title', False))
+        fanarturl = str(addon.queries.get('fanarturl', False))
+        link = net.http_GET(url).content
+        soup = BeautifulSoup(link)
+        videoclass = soup.find(class_='entry-content rich-content')
+        sources = []
+            
+        try:
+            links = videoclass.find_all('iframe')
+            for plink in links:
+                movLink = plink.get('src')
+                hosted_media = urlresolver.HostedMediaFile(movLink)
+                if urlresolver.HostedMediaFile(movLink).valid_url():
+                    sources.append(hosted_media)
+                else:
+                    xbmc.log(msg = movLink + ' not resolvable by urlresolver!', level = xbmc.LOGNOTICE)
+
+        except:
+            print "no embedded urls found using iframe method"
             
         for idx, s in enumerate(sources):
             if s.get_media_id():
@@ -1888,53 +2002,65 @@ elif mode == 'GetMovies':
         except:
             print "No Pagination found"
 
-    elif 'olangalMovies-Recent' in subUrl:
-            if ALLOW_HIT_CTR == 'true':
-                tracker.track_pageview(Page('/Olangal'), session, visitor)
-            currPage = addon.queries.get('currPage', False)
-            if not currPage:
-                currPage = 1
+    elif 'olangal' in subUrl:
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
+        search_text = addon.queries.get('search_text', False)
+        if not search_text:
+            search_text = ''
+
+        if 'olangalMovies' in subUrl:
             olangalurl = 'http://olangal.pro/page/' + str(currPage)
-            Dict_res = cache.cacheFunction(getMovList_olangal, olangalurl)
-            
-            keylist = Dict_res.keys()
-            keylist.sort()
-    
-            for key, value in Dict_res.iteritems():
-                if 'Paginator' not in value:
-                    SplitValues = value.split(",")
-                    mode_Str=""
-                    fullLink_Str=""
-                    fanarturl_Str=""
-                    MovTitle_Str=""
-                    for eachSplitVal in SplitValues:
-                        if 'mode' in eachSplitVal:
-                            mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                        elif 'url' in eachSplitVal:
-                            fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
-                        elif 'imgLink' in eachSplitVal:
-                            fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
-                        elif 'MovTitle' in eachSplitVal:
-                            MovTitle_Str = str(eachSplitVal.encode('utf8').replace('MovTitle=', '')).strip()
-                    if MovTitle_Str:
-                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
-            try:
-                PaginatorVal = Dict_res['Paginator']
-                if PaginatorVal:
-                    SplitValues = PaginatorVal.split(",")
-                    for eachSplitVal in SplitValues:
-                        if 'mode' in eachSplitVal:
-                            mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
-                        elif 'subUrl' in eachSplitVal:
-                            subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
-                        elif 'currPage' in eachSplitVal:
-                            currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
-                        elif 'title' in eachSplitVal:
-                            title_Str = str(eachSplitVal.replace('title=', '')).strip()
-                    addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str }, {'title': title_Str})
-                    #print " : adding NEW next page, mode=" + mode_Str + ', subUrl=' + subUrl_Str + ', currPage=' + currPage_Str + ',title=' + title_Str
-            except:
-                print "No Pagination found"
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/Olangal/Recent'), session, visitor)  
+        elif 'olangalsearch' in subUrl:
+            if currPage == 1:
+                search_text = GetSearchQuery('Olangal')
+                search_text = search_text.replace(' ', '+')
+            olangalurl = 'http://olangal.pro/page/' + str(currPage) + '/?s=' + search_text                
+
+        Dict_res = cache.cacheFunction(getMovList_olangal, olangalurl)
+        
+        keylist = Dict_res.keys()
+        keylist.sort()
+
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                mode_Str=""
+                fullLink_Str=""
+                fanarturl_Str=""
+                MovTitle_Str=""
+                for eachSplitVal in SplitValues:
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'url' in eachSplitVal:
+                        fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                    elif 'imgLink' in eachSplitVal:
+                        fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                    elif 'MovTitle' in eachSplitVal:
+                        MovTitle_Str = str(eachSplitVal.encode('utf8').replace('MovTitle=', '')).strip()
+                if MovTitle_Str:
+                    addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                    elif 'search_text' in eachSplitVal:
+                        search_Str = str(eachSplitVal.replace('search_text=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str, 'search_text': search_Str }, {'title': title_Str})
+        except:
+            print "No Pagination found"
 
     elif ('thiruttuvcd' in subUrl) and ('MP3' not in subUrl):
         currPage = addon.queries.get('currPage', False)
@@ -2557,13 +2683,117 @@ elif mode == 'GetMovies':
 
         except:
             print "No Pagination found"
+
+    elif 'rmovies' in subUrl:
+        currPage = addon.queries.get('currPage', False)
+        if not currPage:
+            currPage = 1
+        search_text = addon.queries.get('search_text', False)
+        if not search_text:
+            search_text = ''
+            
+        if 'rmovies_Tamil' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/tamil/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/Tamil'), session, visitor)
+        elif 'rmovies_Telugu' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/telugu/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/Telugu'), session, visitor)
+        elif 'rmovies_Malayalam' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/malayalam/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/Malayalam'), session, visitor)
+        elif 'rmovies_Kannada' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/kannada-movies/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/Kannada'), session, visitor)
+        elif 'rmovies_Hindi' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/bollywood-movies/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/Hindi'), session, visitor)
+        elif 'rmovies_Dubbed' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/hindi-dubbed/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/Dubbed'), session, visitor)
+        elif 'rmovies_English' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/hollywood-movies/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/English'), session, visitor)
+        elif 'rmovies_Animated' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/animation/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/Animated'), session, visitor)
+        elif 'rmovies_Punjabi' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/punjabi-movies/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/Punjabi'), session, visitor)
+        elif 'rmovies_Urdu' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/pakistan/page/' + str(currPage) + '/'
+            if ALLOW_HIT_CTR == 'true':
+                tracker.track_pageview(Page('/RedMovies/Urdu'), session, visitor)
+        elif 'rmovies_Adult' in subUrl:
+            rmoviesurl = 'http://redmovies.me/category/adult/page/' + str(currPage) + '/'
+        elif 'rmovies_search' in subUrl:
+            if currPage == 1:
+                search_text = GetSearchQuery('RedMovies')
+                search_text = search_text.replace(' ', '+')
+            rmoviesurl = 'http://redmovies.me/page/' + str(currPage) + '/?s=' + search_text
+            
+        Dict_res = cache.cacheFunction(getMovList_rmovies, rmoviesurl)
+
+        keylist = Dict_res.keys()
+        keylist.sort()
+        MovTitle_Str=""    
+        fanarturl_Str=""
+        
+        for key, value in Dict_res.iteritems():
+            if 'Paginator' not in value:
+                SplitValues = value.split(",")
+                try:
+                    for eachSplitVal in SplitValues:
+                        eachSplitVal = eachSplitVal.encode('utf8')
+                        if 'mode' in eachSplitVal:
+                            mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                        elif 'url' in eachSplitVal:
+                            fullLink_Str = str(eachSplitVal.replace('url=', '')).strip()
+                        elif 'imgLink' in eachSplitVal:
+                            fanarturl_Str = str(eachSplitVal.replace('imgLink=', '')).strip()
+                        elif 'MovTitle' in eachSplitVal:
+                            MovTitle_Str = str(eachSplitVal.replace('MovTitle=', '')).strip()
                 
+                    if MovTitle_Str:
+                        addon.add_directory({'mode': mode_Str, 'url': fullLink_Str, 'fanarturl': fanarturl_Str , 'title': MovTitle_Str}, {'title': MovTitle_Str}, img=fanarturl_Str)
+                except:
+                    print "No likely exception caught"                        
+        try:
+            PaginatorVal = Dict_res['Paginator']
+            if PaginatorVal:
+                SplitValues = PaginatorVal.split(",")
+                for eachSplitVal in SplitValues:
+                    eachSplitVal = eachSplitVal.encode('utf8')
+                    if 'mode' in eachSplitVal:
+                        mode_Str = str(eachSplitVal.replace('mode=', '')).strip()
+                    elif 'currPage' in eachSplitVal:
+                        currPage_Str = str(eachSplitVal.replace('currPage=', '')).strip()
+                    elif 'subUrl' in eachSplitVal:
+                        subUrl_Str = str(eachSplitVal.replace('subUrl=', '')).strip()
+                    elif 'title' in eachSplitVal:
+                        title_Str = str(eachSplitVal.replace('title=', '')).strip()
+                    elif 'search_text' in eachSplitVal:
+                        search_Str = str(eachSplitVal.replace('search_text=', '')).strip()
+                addon.add_directory({'mode': mode_Str, 'subUrl': subUrl_Str, 'currPage': currPage_Str, 'search_text': search_Str }, {'title': title_Str})
+
+        except:
+            print "No Pagination found"
+            
     dlg.close()
 
-elif mode == 'olangalMalayalam':
+elif mode == 'olangal':
     if ALLOW_HIT_CTR == 'true':
         tracker.track_pageview(Page('/Olangal_Main'), session, visitor)
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent'}, {'title': 'Recent Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies'}, {'title': 'Recent Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalsearch'}, {'title': '[COLOR yellow]** Search **[/COLOR]'})
 
 elif mode == 'abcmalayalam':
     if ALLOW_HIT_CTR == 'true':
@@ -2583,7 +2813,7 @@ elif mode == 'rajTamil':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilsongs'}, {'title': 'Tamil Movie Songs'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsSunTV'}, {'title': 'TV Shows - Sun TV'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilTVshowsVijayTV'}, {'title': 'TV Shows - Vijay TV'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilsearch'}, {'title': 'Search'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rajtamilsearch'}, {'title': '[COLOR yellow]** Search **[/COLOR]'})
 
 elif mode == 'tamilgun':
     if ALLOW_HIT_CTR == 'true':
@@ -2593,7 +2823,7 @@ elif mode == 'tamilgun':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilgundubbed'}, {'title': 'Tamil Dubbed Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilguncomedy'}, {'title': 'Tamil Movie Comedy Scenes'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilguntrailer'}, {'title': 'Tamil Movie Trailers'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilgunsearch'}, {'title': 'Search'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'tamilgunsearch'}, {'title': '[COLOR yellow]** Search **[/COLOR]'})
 
 elif mode == 'flinks':
     if ALLOW_HIT_CTR == 'true':
@@ -2619,7 +2849,7 @@ elif mode == 'flinks':
     if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinksadult'}, {'title': 'Adult Movies'})
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkshindisc'}, {'title': 'Hindi Softcore'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkssearch'}, {'title': 'Search'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'flinkssearch'}, {'title': '[COLOR yellow]** Search **[/COLOR]'})
 
 elif mode == 'hlinks':
     if ALLOW_HIT_CTR == 'true':
@@ -2629,7 +2859,7 @@ elif mode == 'hlinks':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'hlinksdocu'}, {'title': 'Documentary Movies'})
     if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'hlinksadult'}, {'title': 'Adult Movies'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'hlinkssearch'}, {'title': 'Search'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'hlinkssearch'}, {'title': '[COLOR yellow]** Search **[/COLOR]'})
 
 elif mode == 'thiruttuvcd':
     if ALLOW_HIT_CTR == 'true':
@@ -2638,11 +2868,11 @@ elif mode == 'thiruttuvcd':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_tamilMovs'}, {'title': 'Tamil Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_teluguMovs'}, {'title': 'Telugu Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_hindiMovs'}, {'title': 'Hindi Movies'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_search'}, {'title': 'Search'})
     if SETTINGS_ENABLEADULT == 'true':
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_adult'}, {'title': 'Adult Movies'})
         addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_masala'}, {'title': 'Thiruttu Masala'})
-
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'thiruttuvcd_search'}, {'title': '[COLOR yellow]** Search **[/COLOR]'})
+    
 elif mode == 'mersal':
     if ALLOW_HIT_CTR == 'true':
         tracker.track_pageview(Page('/Mersal_Main'), session, visitor)
@@ -2652,7 +2882,7 @@ elif mode == 'mersal':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'mersal_Malayalam'}, {'title': 'Malayalam Movies'})  
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'mersal_Dubbed'}, {'title': 'Dubbed Movies'})    
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'mersal_Animation'}, {'title': 'Animation Movies'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'mersal_search'}, {'title': 'Search'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'mersal_search'}, {'title': '[COLOR yellow]** Search **[/COLOR]'})
 
 elif mode == 'ftube':
     if ALLOW_HIT_CTR == 'true':
@@ -2662,16 +2892,34 @@ elif mode == 'ftube':
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ftube_Hindi'}, {'title': 'Hindi Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ftube_Dubbed'}, {'title': 'Hindi Dubbed Movies'})
     addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ftube_Punjabi'}, {'title': 'Punjabi Movies'})
-    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ftube_search'}, {'title': 'Search'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'ftube_search'}, {'title': '[COLOR yellow]** Search **[/COLOR]'})
 
+elif mode == 'rmovies':
+    if ALLOW_HIT_CTR == 'true':
+        tracker.track_pageview(Page('/RedMovies_Main'), session, visitor)
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Tamil'}, {'title': 'Tamil Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Telugu'}, {'title': 'Telugu Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Malayalam'}, {'title': 'Malayalam Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Hindi'}, {'title': 'Hindi Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_English'}, {'title': 'English Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Animated'}, {'title': 'Animation Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Dubbed'}, {'title': 'Hindi Dubbed Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Kannada'}, {'title': 'Kannada Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Punjabi'}, {'title': 'Punjabi Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Urdu'}, {'title': 'Urdu Movies'})
+    if SETTINGS_ENABLEADULT == 'true':
+        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_Adult'}, {'title': 'Adult Movies'})
+    addon.add_directory({'mode': 'GetMovies', 'subUrl': 'rmovies_search'}, {'title': '[COLOR yellow]** Search **[/COLOR]'})
+    
 elif mode == 'main':
         addon.add_directory({'mode': 'abcmalayalam'}, {'title': 'ABCMalayalam : Malayalam'})
         addon.add_directory({'mode': 'flinks'}, {'title': 'FilmLinks4U : Various'})
         addon.add_directory({'mode': 'ftube'}, {'title': 'FirstTube : Hindi, Tamil, Telugu, Punjabi'})
         addon.add_directory({'mode': 'hlinks'}, {'title': 'HindiLinks4U : Hindi'})
         addon.add_directory({'mode': 'mersal'}, {'title': 'Mersalaayitten : Malayalam, Tamil, Telugu, Hindi'})
-        addon.add_directory({'mode': 'GetMovies', 'subUrl': 'olangalMovies-Recent'}, {'title':'Olangal : Malayalam'})
+        addon.add_directory({'mode': 'olangal'}, {'title':'Olangal : Malayalam'})
         addon.add_directory({'mode': 'rajTamil'}, {'title': 'RajTamil : Tamil'})
+        addon.add_directory({'mode': 'rmovies'}, {'title': 'RedMovies : Various'})
         addon.add_directory({'mode': 'tamilgun'}, {'title': 'TamilGun : Tamil'})
         addon.add_directory({'mode': 'thiruttuvcd'}, {'title': 'Thiruttu VCD : Malayalam, Tamil, Telugu, Hindi'})
         addon.add_directory({'mode': 'Worship Songs'}, {'title': '[COLOR yellow]+ Worship Songs+[/COLOR]'})

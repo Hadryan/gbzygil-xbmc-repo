@@ -1,7 +1,13 @@
+[B]Version 0.3.1 - 19 Jun 2016[/B]
+- Update by Gujal
+- New Source RedMovies
+- Search option on Olangal
+- Fix Pagination bug in ThirttuVCD introduced in last version
+- Search option different colour from other items in menu
+
 [B]Version 0.3.0 - 12 Jun 2016[/B]
 - Update by Gujal
 - Search option on most scrapers
-
 
 [B]Version 0.2.9 - 21 May 2016[/B]
 - Update by Gujal
